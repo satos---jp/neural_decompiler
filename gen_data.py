@@ -143,6 +143,7 @@ def get_line_from_list(asm,objd):
 
 
 data = []
+vocab = {}
 #srcs = ['cat']
 for fn in srcs:
 	fn = './build/' + fn
@@ -179,10 +180,11 @@ for fn in srcs:
 			continue
 		
 		ncs = csrc[a:b+1] 
-		#print(nas)
-		#print(ncs)
 		
-		data.append((nas,ncs))
+		vocabs
+		
+		#data.append((nas,ncs))
+			
 
 print('data = ' + str(data))
 

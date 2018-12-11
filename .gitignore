@@ -2,3 +2,4 @@
 __pycache__/
 build/
 data.py
+seq2seq.py
