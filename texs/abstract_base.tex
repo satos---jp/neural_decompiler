@@ -1,0 +1,33 @@
+\documentclass[senior,final,11pt]{iscs-thesis}
+%論文の種類とフォントサイズをオプションに
+%\usepackage{graphicx}% 必要に応じて
+%\usepackage{mysettings}% 自分用設定
+%-------------------
+\etitle{Decompiler for Machine Code using Neural Networks}
+\jtitle{ニューラルネットを用いた機械語のための逆コンパイラ}
+__NAMES__
+\date{December 11, 2018}
+%-------------------
+
+
+\begin{document}
+\begin{eabstract}
+A decompiler is a tool which aims to recover source code from compiled binary data.
+There are various decompilers, but they often output source code that is not quite intelligible to humans. 
+Therefore, we tried to apply machine translantion techniques to generate human intelligible decompiled source code. 
+In this paper, we used Recurrent Neural Networks with Attention, which is useful for machine translation. 
+We made training and test data by collecting source code from open source projects and compiled them to generate source code and binary pairs. 
+Then we trained neural networks by using the pairs, and evaluated the effectiveness of the method.
+\end{eabstract}
+\begin{jabstract}
+逆コンパイラはコンパイル後のバイナリデータからソースコードを復元するためのツールである。
+既存の逆コンパイラはしばしば分かりにくいソースコードを出力する。
+そこで、我々は統計的機械翻訳の技術を逆コンパイラに用いて、解析者にとってわかりやすいソースコードを出力するような逆コンパイラを提案する。
+この論文では、機械翻訳において有用とされる Attention 付き Reccurent Neural Netowk を用いる。
+我々はまず、オープンソースプロジェクトからソースコードを収集し、コンパイラを用いて学習用のソースコードとバイナリデータの組を生成した。
+そして、そのデータを用いてネットワークのトレーニングを行い、手法の性能を検証した。
+\end{jabstract}
+
+\maketitle
+
+\end{document}

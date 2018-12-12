@@ -3,3 +3,5 @@ __pycache__/
 build/
 data.py
 seq2seq.py
+texs/abstract.*
+texs/iscs-thesis.cls
