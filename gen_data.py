@@ -1,10 +1,8 @@
-#!/usr/bin/python3
+#! /usr/bin/env /home/satos/sotsuron/neural_decompiler/python_fix_seed.sh
 
-	
 from pycparser import c_parser, c_ast, parse_file
 	
-srcs = ['bio', 'bootmain', 'cat', 'console', 'echo', 'exec', 'file', 'forktest', 'fs', 'grep', 'ide', 'init', 'ioapic', 'kalloc', 'kbd', 'kill', 'lapic', 'ln', 'ls', 'main', 'memide', 'mkdir', 'mkfs', 'mp', 'picirq', 'pipe', 'printf', 'rm', 'sh', 'sleeplock', 'stressfs', 'string', 'syscall', 'sysfile', 'sysproc', 'uart', 'ulib', 'umalloc', 'wc', 'zombie']
-
+srcs = ['abspath', 'advice', 'alias', 'alloc', 'archive-tar', 'archive-zip', 'archive', 'argv-array', 'base85', 'bisect', 'blame', 'blob', 'branch', 'bulk-checkin', 'cache-tree', 'chdir-notify', 'check-racy', 'checkout', 'column', 'combine-diff', 'commit-graph', 'commit-reach', 'commit', 'common-main', 'connect', 'connected', 'convert', 'copy', 'credential-cache--daemon', 'credential-cache', 'credential-store', 'credential', 'csum-file', 'ctype', 'daemon', 'date', 'decorate', 'delta-islands', 'diff-delta', 'diff-lib', 'diff-no-index', 'diff', 'diffcore-break', 'diffcore-delta', 'diffcore-pickaxe', 'diffcore-rename', 'dir-iterator', 'editor', 'entry', 'environment', 'fast-import', 'fetch-negotiator', 'fetch-object', 'fetch-pack', 'fsck', 'fsmonitor', 'fuzz-pack-headers', 'fuzz-pack-idx', 'gpg-interface', 'graph', 'grep', 'hashmap', 'help', 'hex', 'http-backend', 'http-fetch', 'http-push', 'http-walker', 'http', 'ident', 'imap-send', 'interdiff', 'json-writer', 'kwset', 'levenshtein', 'line-log', 'line-range', 'linear-assignment', 'list-objects-filter-options', 'list-objects-filter', 'list-objects', 'll-merge', 'lockfile', 'ls-refs', 'mailinfo', 'match-trees', 'mem-pool', 'merge-blobs', 'merge-recursive', 'merge', 'mergesort', 'midx', 'name-hash', 'notes-cache', 'notes-merge', 'notes-utils', 'notes', 'object', 'oidmap', 'oidset', 'pack-bitmap-write', 'pack-bitmap', 'pack-check', 'pack-objects', 'pack-revindex', 'pack-write', 'packfile', 'parse-options-cb', 'parse-options', 'patch-delta', 'patch-ids', 'path', 'pathspec', 'pkt-line', 'preload-index', 'pretty', 'prio-queue', 'progress', 'prompt', 'protocol', 'quote', 'range-diff', 'reachable', 'read-cache', 'rebase-interactive', 'ref-filter', 'reflog-walk', 'refs', 'refspec', 'remote-curl', 'remote-testsvn', 'remote', 'replace-object', 'repository', 'rerere', 'resolve-undo', 'revision', 'send-pack', 'serve', 'server-info', 'setup', 'sh-i18n--envsubst', 'sha1-array', 'sha1-lookup', 'sha1-name', 'shallow', 'shell', 'sigchain', 'split-index', 'strbuf', 'streaming', 'string-list', 'sub-process', 'submodule-config', 'submodule', 'symlinks', 'tag', 'tempfile', 'thread-utils', 'tmp-objdir', 'trace', 'trailer', 'transport-helper', 'transport', 'tree-diff', 'tree-walk', 'tree', 'unix-socket', 'upload-pack', 'url', 'usage', 'utf8', 'varint', 'versioncmp', 'walker', 'wildmatch', 'worktree', 'wrapper', 'write-or-die', 'ws', 'xdiff-interface', 'zlib']
 
 class ParseErr(Exception):
 	def __init__(sl,s):
@@ -143,7 +141,10 @@ def get_line_from_list(asm,objd):
 
 
 data = []
-vocab = {}
+vocab_src = []
+
+import collections 
+
 #srcs = ['cat']
 for fn in srcs:
 	fn = './build/' + fn
@@ -168,6 +169,9 @@ for fn in srcs:
 	with open(fn + '.tokenized.c') as fp:
 		csrc = fp.read()
 		csrc = csrc.split('\n')
+
+	with open(fn + '.tokenized') as fp:
+		csrc_with_type = list(map(lambda x: x.split(' ')[0],fp.read().split('\n')))
 	
 	#print(fn)
 	for a,b in lines:
@@ -179,14 +183,32 @@ for fn in srcs:
 		if len(nas)==0:
 			continue
 		
-		ncs = csrc[a:b+1] 
 		
-		vocabs
+		def i2srcdata(i):
+			if 'string_literal' == csrc_with_type[i]:
+				return '__STRING__'
+			return csrc[i]
 		
-		#data.append((nas,ncs))
-			
+		ncs = [i2srcdata(i) for i in range(a,b+1)]
+		#ncs = csrc[a:b+1]
+
+		vocab_src += ncs
+		
+		data.append((nas,ncs))
+
+
+vocab_src = sorted(map(lambda xy: (xy[1],xy[0]),collections.Counter(vocab_src).items()))[::-1][:252]
+lvoc = len(vocab_src)
+vocab_src = list(map(lambda xy: xy[1],vocab_src))
+#print(vocab_src)
+#exit()
+data = list(map(lambda xy: (list(map(lambda t: int(t,16),xy[0])),list(map(lambda t: vocab_src.index(t) if t in vocab_src else lvoc,xy[1]))),data))
+vocab_src.append('__SOME__')
+
+#data = list(map(lambda xy: (list(map(lambda t: int(t,16),xy[0])),xy[1]),data))
 
 print('data = ' + str(data))
+print('src_bocab = ' + str(vocab_src))  
 
 
 

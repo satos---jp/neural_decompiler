@@ -5,3 +5,8 @@ data.py
 seq2seq.py
 texs/abstract.*
 texs/iscs-thesis.cls
+logs/
+build_save/
+result/
+tes.py
+tes.sh
