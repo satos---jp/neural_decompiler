@@ -2,8 +2,6 @@
 
 from pycparser import c_parser, c_ast, parse_file
 	
-srcs = ['abspath', 'advice', 'alias', 'alloc', 'archive-tar', 'archive-zip', 'archive', 'argv-array', 'base85', 'bisect', 'blame', 'blob', 'branch', 'bulk-checkin', 'cache-tree', 'chdir-notify', 'check-racy', 'checkout', 'column', 'combine-diff', 'commit-graph', 'commit-reach', 'commit', 'common-main', 'connect', 'connected', 'convert', 'copy', 'credential-cache--daemon', 'credential-cache', 'credential-store', 'credential', 'csum-file', 'ctype', 'daemon', 'date', 'decorate', 'delta-islands', 'diff-delta', 'diff-lib', 'diff-no-index', 'diff', 'diffcore-break', 'diffcore-delta', 'diffcore-pickaxe', 'diffcore-rename', 'dir-iterator', 'editor', 'entry', 'environment', 'fast-import', 'fetch-negotiator', 'fetch-object', 'fetch-pack', 'fsck', 'fsmonitor', 'fuzz-pack-headers', 'fuzz-pack-idx', 'gpg-interface', 'graph', 'grep', 'hashmap', 'help', 'hex', 'http-backend', 'http-fetch', 'http-push', 'http-walker', 'http', 'ident', 'imap-send', 'interdiff', 'json-writer', 'kwset', 'levenshtein', 'line-log', 'line-range', 'linear-assignment', 'list-objects-filter-options', 'list-objects-filter', 'list-objects', 'll-merge', 'lockfile', 'ls-refs', 'mailinfo', 'match-trees', 'mem-pool', 'merge-blobs', 'merge-recursive', 'merge', 'mergesort', 'midx', 'name-hash', 'notes-cache', 'notes-merge', 'notes-utils', 'notes', 'object', 'oidmap', 'oidset', 'pack-bitmap-write', 'pack-bitmap', 'pack-check', 'pack-objects', 'pack-revindex', 'pack-write', 'packfile', 'parse-options-cb', 'parse-options', 'patch-delta', 'patch-ids', 'path', 'pathspec', 'pkt-line', 'preload-index', 'pretty', 'prio-queue', 'progress', 'prompt', 'protocol', 'quote', 'range-diff', 'reachable', 'read-cache', 'rebase-interactive', 'ref-filter', 'reflog-walk', 'refs', 'refspec', 'remote-curl', 'remote-testsvn', 'remote', 'replace-object', 'repository', 'rerere', 'resolve-undo', 'revision', 'send-pack', 'serve', 'server-info', 'setup', 'sh-i18n--envsubst', 'sha1-array', 'sha1-lookup', 'sha1-name', 'shallow', 'shell', 'sigchain', 'split-index', 'strbuf', 'streaming', 'string-list', 'sub-process', 'submodule-config', 'submodule', 'symlinks', 'tag', 'tempfile', 'thread-utils', 'tmp-objdir', 'trace', 'trailer', 'transport-helper', 'transport', 'tree-diff', 'tree-walk', 'tree', 'unix-socket', 'upload-pack', 'url', 'usage', 'utf8', 'varint', 'versioncmp', 'walker', 'wildmatch', 'worktree', 'wrapper', 'write-or-die', 'ws', 'xdiff-interface', 'zlib']
-
 class ParseErr(Exception):
 	def __init__(sl,s):
 		pass
@@ -135,18 +133,35 @@ def get_line_from_list(asm,objd):
 				nbs = filter(lambda x: x!='',nbs.split(' '))
 				nbs = list(nbs)
 				#print(nld,nbs)
+				#nbs = objd[i].split('\t')[2]
+				
 				res.append((int(nld)-1,nbs)) #1-indexed!!
 			i += 1
 	return res
 
 
+class InvalidToken(Exception):
+	pass
+
 data = []
-vocab_src = []
+vocab_src = set([])
+types = set([])
 
 import collections 
+import os
+import sys
+import random
 
+srcs = list(map(lambda x: x[:-5],filter(lambda x: x[-5:]=='.objd',os.listdir('./build'))))
 #srcs = ['cat']
+
+len_srcs = len(srcs)
+idx_srcs = 0
 for fn in srcs:
+	idx_srcs += 1
+	if idx_srcs % 100 == 0:
+		sys.stderr.write('finish %d/%d\n' % (idx_srcs,len_srcs))
+		
 	fn = './build/' + fn
 	with open(fn + '.s') as fp:
 		asm = fp.read()
@@ -172,6 +187,37 @@ for fn in srcs:
 
 	with open(fn + '.tokenized') as fp:
 		csrc_with_type = list(map(lambda x: x.split(' ')[0],fp.read().split('\n')))
+		#types |= set(csrc_with_type)
+	
+	idents = []
+	def i2srcdata(i):
+		t = csrc_with_type[i]
+		if t in ['continue', 'percentequal',  'while', 'pipeequal', 'minusminus',  'lesslessequal', 'double', 'l_paren', 'float',  'union', 'int', 'starequal', 'caretequal', 'l_brace', 'do', 'sizeof', 'lessequal', 'pipe', 'greatergreaterequal', 'break', 'question', 'comma', 'plusplus', 'r_paren', 'semi', 'long', 'struct', 'r_square', 'l_square',  'const', 'typeof',  'exclaimequal', 'static', 'register', 'greater',  'equal', 'tilde', 'eof', 'slash', 'minusequal', 'greaterequal', 'if', 'ampamp', 'amp', 'signed', 'unsigned', 'caret', 'typedef', 'lessless', 'greatergreater', 'ellipsis',  'restrict', 'switch', 'equalequal', 'period', 'else', 'extern',  'short', 'r_brace', 'colon', 'pipepipe', 'return', 'goto',  'default', 'enum', 'void', 'case', 'minus', 'plusequal', 'volatile', 'for', 'less', 'ampequal', 'exclaim', 'star', 'percent',  'arrow', 'slashequal', 'char', 'plus', 'inline']:
+			return csrc[i]
+		elif t in ['__real','__imag','_Alignof','__alignof','_Static_assert','_Bool', '__func__','_Noreturn']: #C++かな。
+			#raise "Avoid"
+			pass
+		elif t in ['__builtin_va_arg', '__attribute','__builtin_offsetof', '__extension__','_Complex','__PRETTY_FUNCTION__','asm','__label__','__builtin_types_compatible_p']: #avoid like gcc extension.
+			pass
+		elif t in ['numeric_constant','char_constant','wide_char_constant']:
+			return csrc[i]
+		elif t in ['string_literal']:
+			return '__STRING__'
+		elif t in ['identifier']:
+			idents.append('__VAR__' + csrc[i])
+			return '__VAR__' + csrc[i]
+		elif t in ['']:
+			pass
+		else:
+			print('unknown token:',t,'in file',fn)
+		raise InvalidToken
+		#return csrc[i]
+	
+	for i in range(len(csrc_with_type)):
+		try:
+			i2srcdata(i)
+		except InvalidToken:
+			pass
 	
 	#print(fn)
 	for a,b in lines:
@@ -179,36 +225,70 @@ for fn in srcs:
 		for i,d in ds:
 			if a <= i and i < b:
 				nas += d
-				#nas += 
+				#nas.append(d)  
 		if len(nas)==0:
 			continue
 		
+		try:
+			idents = []
+			ncs = [i2srcdata(i) for i in range(a,b+1)]
+			idents = list(set(idents))
+			
+			# data augumentation
+			for _ in range(5):
+				nds = []
+				for d in idents:
+					while True:
+						v = random.randint(0,99) #VAR_MAX 
+						if v in nds:
+							continue
+						nds.append(v)
+						break
+				#print(ncs,idents)
+				tcs = [("__ID_%d__" % nds[idents.index(c)] if c in idents else c) for c in ncs] 
+				data.append((nas,tcs))
+				vocab_src |= set(tcs)
+						
+			#vocab_src += ncs
 		
-		def i2srcdata(i):
-			if 'string_literal' == csrc_with_type[i]:
-				return '__STRING__'
-			return csrc[i]
-		
-		ncs = [i2srcdata(i) for i in range(a,b+1)]
-		#ncs = csrc[a:b+1]
-
-		vocab_src += ncs
-		
-		data.append((nas,ncs))
+			#data.append((nas,ncs))
+		except InvalidToken:
+			pass
 
 
-vocab_src = sorted(map(lambda xy: (xy[1],xy[0]),collections.Counter(vocab_src).items()))[::-1][:252]
-lvoc = len(vocab_src)
-vocab_src = list(map(lambda xy: xy[1],vocab_src))
-#print(vocab_src)
+"""
+./build/0848b888848180a1ae75b12bede3681371189593.pp.c:9:19: warning: trigraph ignored [-Wtrigraphs]
+  char *s8 = "??\\??=";                 ^
+"""
+#print(list(types))
+#exit()
+
+#vocab_src = sorted(map(lambda xy: (xy[1],xy[0]),collections.Counter(vocab_src).items()))[::-1][:1000]
+#lvoc = len(vocab_src)
+#vocab_src = list(map(lambda xy: xy[1],vocab_src))
+vocab_src = list(vocab_src)
+print(vocab_src)
 #exit()
 data = list(map(lambda xy: (list(map(lambda t: int(t,16),xy[0])),list(map(lambda t: vocab_src.index(t) if t in vocab_src else lvoc,xy[1]))),data))
-vocab_src.append('__SOME__')
+#data = list(map(lambda xy: (list(map(lambda t: t,xy[0])),list(map(lambda t: vocab_src.index(t) if t in vocab_src else lvoc,xy[1]))),data))
+#vocab_src.append('__SOME__')
 
 #data = list(map(lambda xy: (list(map(lambda t: int(t,16),xy[0])),xy[1]),data))
 
 print('data = ' + str(data))
-print('src_bocab = ' + str(vocab_src))  
+print('c_vocab = ' + str(vocab_src))  
+
+def show_data():
+	for k,vs in data:
+		print('data:',k)
+		print('source:',' '.join([vocab_src[v] for v in vs]))
+
+#show_data()
+
+
+
+
+
 
 
 

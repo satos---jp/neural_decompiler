@@ -1,0 +1,15 @@
+../corpus_folders/libpostal/src/address_expansion_data.c :: too long file
+../corpus_folders/notes :: chinese character file name
+../corpus_folders/libpostal/src/numex_data.c :: too large too
+../corpus_folders/ShiYanLou/ :: chinese chars.
+../corpus_folders/CCID/ :: なんかlinkみたいなんがある
+../corpus_folders/snippets.org/eng.c :: 変な文字のため
+../corpus_folders/restful-doom/chocpkg/build/restful-doom :: 自己辺はってやがる
+../corpus_folders/snippets.org/vidmgr.c :: 辺な文字
+../corpus_folders/z88dk/support/cpc/sna_mng.c :: 文字
+../corpus_folders/z88dk/support/sam/dskman.c :: 文字
+mv 2048.c/ 2048_c :: フォルダ名がな～...
+../corpus_folders/gcc-python-plugin/tests/cpychecker/refcounts/PyFloat_FromDouble/simple/.#input.c :: はい。
+../corpus_folders/linux-0.11/kernel/vsprintf.c :: 文字。
+../corpus_folders/Simple-MSIL-Compiler/netil/base_conv.c :: 文字。
+rm ./build/0848b888848180a1ae75b12bede3681371189593.objd :: なんかtirgraphがある

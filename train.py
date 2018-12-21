@@ -16,7 +16,7 @@ def sequence_embed(embed, xs):
 	return exs
 
 class Seq2seq(chainer.Chain):
-	def __init__(self, n_layers, n_source_vocab, n_target_vocab, n_units,v_eos):
+	def __init__(self, n_layers, n_source_vocab, n_target_vocab, n_units,v_eos_src,v_eos_dst,n_maxlen):
 		super(Seq2seq, self).__init__()
 		with self.init_scope():
 			self.embed_x = L.EmbedID(n_source_vocab, n_units)
@@ -27,16 +27,18 @@ class Seq2seq(chainer.Chain):
 
 		self.n_layers = n_layers
 		self.n_units = n_units
-		self.v_eos = v_eos
+		self.v_eos_src = v_eos_src
+		self.v_eos_dst = v_eos_dst
+		self.n_maxlen = n_maxlen
 
 	def forward(self, xs, ys):
 		#print(xs,ys)
 		#exit()
 		xs = [x[::-1] for x in xs]
 		
-		eos = self.xp.array([self.v_eos], np.int32)
-		ys_in = [F.concat([eos, y], axis=0) for y in ys]
-		ys_out = [F.concat([y, eos], axis=0) for y in ys]
+		eos_dst = self.xp.array([self.v_eos_dst], np.int32)
+		ys_in = [F.concat([eos_dst, y], axis=0) for y in ys]
+		ys_out = [F.concat([y, eos_dst], axis=0) for y in ys]
 
 		# Both xs and ys_in are lists of arrays.
 		exs = sequence_embed(self.embed_x, xs)
@@ -66,16 +68,16 @@ class Seq2seq(chainer.Chain):
 		return loss
 
 
-	def translate(self, xs, max_length=100):
-		EOS = self.v_eos
+	def translate(self, xs):
+		EOS_DST = self.v_eos_dst
 		batch = len(xs)
 		with chainer.no_backprop_mode(), chainer.using_config('train', False):
 			xs = [x[::-1] for x in xs]
 			exs = sequence_embed(self.embed_x, xs)
 			h, c, _ = self.encoder(None, None, exs)
-			ys = self.xp.full(batch, EOS, np.int32)
+			ys = self.xp.full(batch, EOS_DST, np.int32)
 			result = []
-			for i in range(max_length):
+			for i in range(self.n_maxlen):
 				eys = self.embed_y(ys)
 				eys = F.split_axis(eys, batch, 0)
 				h, c, ys = self.decoder(h, c, eys)
@@ -91,7 +93,7 @@ class Seq2seq(chainer.Chain):
 		# Remove EOS taggs
 		outs = []
 		for y in result:
-			inds = np.argwhere(y == EOS)
+			inds = np.argwhere(y == EOS_DST)
 			if len(inds) > 0:
 				y = y[:inds[0, 0]]
 			outs.append(y)
@@ -117,8 +119,9 @@ def main():
 	n_layer = 4
 	n_unit = 128
 	
+	n_maxlen = 100
 	#data.data = list(filter(lambda xy: len(xy[0])<20 and len(xy[1])<10,data.data))
-	data.data = list(filter(lambda xy: len(xy[1])<100,data.data))
+	data.data = list(filter(lambda xy: len(xy[1])<n_maxlen,data.data))
 	print(len(data.data))
 	
 	lds = len(data.data)
@@ -128,15 +131,17 @@ def main():
 	#source_ids = load_vocabulary(args.SOURCE_VOCAB)
 	#target_ids = load_vocabulary(args.TARGET_VOCAB)
 	maxlen_asm = max(map(lambda xy: len(xy[0]),data.data)) + 1
-	maxlen_src = max(map(lambda xy: len(xy[1]),data.data)) + 1
-	print(maxlen_asm,maxlen_src)
+	maxlen_c   = max(map(lambda xy: len(xy[1]),data.data)) + 1
+	print(maxlen_asm,maxlen_c)
 	
-	from_bocab = 256 #現状asmなので
-	v_eos = len(data.src_bocab)
-	src_bocab = data.src_bocab + ['__EOS__']
-	to_bocab = len(src_bocab)
+	v_eos_src = 256 #現状asmなので
+	src_vocab_len = v_eos_src + 1
+	
+	v_eos_dst = len(data.c_vocab)
+	c_vocab = data.c_vocab + ['__EOS__']
+	dst_vocab_len = len(c_vocab)
  
-	model = Seq2seq(n_layer, from_bocab, to_bocab , n_unit, v_eos)
+	model = Seq2seq(n_layer, src_vocab_len, dst_vocab_len , n_unit, v_eos_src, v_eos_dst, n_maxlen)
 	optimizer = chainer.optimizers.Adam()
 	optimizer.setup(model)
 	
@@ -144,8 +149,8 @@ def main():
 	
 	#ddata  = list(map(lambda xy: np.array(xy[0] + (maxlen_asm - len(xy[0])) * [v_eos],np.int32),data.data))
 	#dlabel = list(map(lambda xy: np.array(xy[1] + (maxlen_src - len(xy[1])) * [v_eos],np.int32),data.data))
-	ddata  = list(map(lambda xy: np.array(xy[0] + [v_eos],np.int32),data.data))
-	dlabel = list(map(lambda xy: np.array(xy[1] + [v_eos],np.int32),data.data))
+	ddata  = list(map(lambda xy: np.array(xy[0] + [v_eos_src],np.int32),data.data))
+	dlabel = list(map(lambda xy: np.array(xy[1] + [v_eos_dst],np.int32),data.data))
 	#dataset = chainer.datasets.tuple_dataset.TupleDataset(ddata,dlabel)
 	dataset = list(zip(ddata,dlabel))
 	#code.interact(local={'data': dataset})
@@ -164,21 +169,21 @@ def main():
 	logt = 0
 	train_iter_step = 100
 	
-	def calcurate_edit_distance_based_simirarity():
+	def calcurate_edit_distance():
 		ratio = 0.0
 		ds = random.sample(test_data, 100)
 		for fr,to in ds:
 			result = model.translate([model.xp.array(fr)])[0]
 			result = list(result)
 			#print(to,result)
-			ratio += edit_distance.SequenceMatcher(to,result).ratio()
+			ratio += 1.0 - edit_distance.SequenceMatcher(to,result).ratio()
 		#print(ratio)
 		ratio /= len(ds)
 		return ratio
 		
 	@chainer.training.make_extension()
 	def translate(trainer):
-		print('simirality:',calcurate_edit_distance_based_simirarity())
+		print('edit distance:',calcurate_edit_distance())
 		nonlocal logt
 		logt += train_iter_step
 		with open('log/iter_%s__time_%s.txt' % (logt,getstamp()),'w') as fp:
@@ -188,8 +193,8 @@ def main():
 				result = model.translate([model.xp.array(source)])[0]
 		
 				source_sentence = ' '.join(['%02x' % x for x in source])
-				target_sentence = ' '.join([src_bocab[y] for y in target])
-				result_sentence = ' '.join([src_bocab[y] for y in result])
+				target_sentence = ' '.join([c_vocab[y] for y in target])
+				result_sentence = ' '.join([c_vocab[y] for y in result])
 				res += ('# source : ' + source_sentence) + "\n"
 				res += ('# expect : ' + target_sentence) + "\n"
 				#print('# result_array : ' + ' '.join(["%d" % y for y in result]))

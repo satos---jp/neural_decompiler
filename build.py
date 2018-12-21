@@ -13,16 +13,22 @@ import binascii
 
 def convert(path):
 	bfn = subprocess.check_output(['sha1sum',path]).decode().split(' ')[0]
-	bfn = bfn + '_' + binascii.hexlify(path.encode()).decode()
+	#bfn = binascii.hexlify(path.encode()).decode()
 	if bfn in os.listdir('./build'):
-		return bfn
+		return
+	subprocess.call('echo "%s | %s" >> correspond_table.txt' % (path,bfn),shell=True)
 	fn = './build/' + bfn
-	subprocess.call('touch %s' % bfn,shell=True)
-
+	subprocess.call('touch %s' % fn,shell=True)
+	
+	print(path)
 	d = subprocess.call('gcc -E %s > /dev/null 2> /dev/null' % path,shell=True) 
 	
 	if d == 0:
 		d = subprocess.call('gcc -E %s | grep -v "#" | grep -v "^[[:space:]]*$" > %s.pp.c 2> /dev/null' % (path,fn),shell=True)
+
+	if d == 0 and int(list(filter(lambda x: x!= '',subprocess.check_output(['wc','%s.pp.c' % fn]).decode().split(' ')))[0]) > 5000:
+		# too big.
+		d = 1
 	
 	if d == 0:
 		d = subprocess.call('clang -Xclang -dump-tokens -fsyntax-only %s.pp.c > /dev/null 2> %s.tokenized' % (fn,fn),shell=True)
@@ -57,25 +63,17 @@ def convert(path):
 	
 	if d == 0:
 		print('convert',path,'to',fn)
-		exit()
-		return bfn		
-	else:
-		return None
 
 
 
 def enumerate_src(path):
 	print('search at',path)
-	res = []
 	for fn in os.listdir(path):
 		rfn = os.path.join(path,fn)
-		if rfn[-2:]=='.c':
-			d = convert(rfn)
-			if d is not None:
-				res.append(d)
-		elif os.path.isdir(rfn):
-			res += enumerate_src(rfn)
-	return res
+		if rfn[-2:]=='.c' and (not os.path.isdir(rfn)):
+			convert(rfn)
+		if os.path.isdir(rfn):
+			enumerate_src(rfn)
 
 
 """
@@ -90,6 +88,5 @@ for dirn in ['nginx/src/%s/' % s for s in ['core','event','http','mail','stream'
 """
 
 
-tfns = enumerate_src('../corpus_folders/')
+enumerate_src('../corpus_folders/')
 
-print(tfns)
