@@ -161,8 +161,9 @@ for fn in srcs:
 	idx_srcs += 1
 	if idx_srcs % 100 == 0:
 		sys.stderr.write('finish %d/%d\n' % (idx_srcs,len_srcs))
-		
+	
 	fn = './build/' + fn
+	#sys.stderr.write(fn + '\n')
 	with open(fn + '.s') as fp:
 		asm = fp.read()
 	with open(fn + '.objd') as fp:
@@ -199,10 +200,49 @@ for fn in srcs:
 			pass
 		elif t in ['__builtin_va_arg', '__attribute','__builtin_offsetof', '__extension__','_Complex','__PRETTY_FUNCTION__','asm','__label__','__builtin_types_compatible_p']: #avoid like gcc extension.
 			pass
-		elif t in ['numeric_constant','char_constant','wide_char_constant']:
+		elif t in ['numeric_constant']:
+			# TODO ここできればうまくやりたい(ないとvocavが6435とかいわれてきつい)
+			v = csrc[i]
+			if "." in v or "p" in v or "e" in v or "E" in v:
+				# 0x1p64 なんか、こういう記法もあるらしい。
+				# 面倒なので、全部CONSTにする
+				"""
+				tv = v
+				if tv[-1:] in ['f','L']:
+					tv = tv[:-1]
+				if re.match("\d*.\d*e\d*",tv):
+					d = eval(tv)
+				else:
+					d = float(tv)
+				"""
+				return "__CONST__"
+			else:
+				tv = v
+				if tv[-3:] in ['ULL','LLU','ull','uLL','llU','LLu']:
+					tv = tv[:-3]
+				elif tv[-2:] in ['UL','LU', 'LL','ul','ll']:
+					tv = tv[:-2]
+				elif tv[-1:] in ['L','l','U','u']:
+					tv = tv[:-1]
+				
+				if tv[-1] not in '1234567890abcdefABCDEF':
+					sys.stderr.write('bad integer representation: ' + v + '\n')
+					exit()
+				
+				if tv[:2]=='0x':
+					d =  int(tv[2:],16)
+				elif tv[:2] in ['0b','0B']:
+					d =  int(tv[2:],2)
+				else:
+					d = int(tv)
+			if isinstance(d,int) and abs(d) <= 100:
+				return "%d" % d #一種の正規化。しといたほうがいいはず。
+			else:
+				return "__CONST__"
+		elif t in ['char_constant','wide_char_constant']:
 			return csrc[i]
 		elif t in ['string_literal']:
-			return '__STRING__'
+			return '__STR__'
 		elif t in ['identifier']:
 			idents.append('__VAR__' + csrc[i])
 			return '__VAR__' + csrc[i]
@@ -232,6 +272,10 @@ for fn in srcs:
 		try:
 			idents = []
 			ncs = [i2srcdata(i) for i in range(a,b+1)]
+			
+			if len(ncs)>=100:
+				raise InvalidToken # 一旦飛ばす。 ./build/c60873877f8813ca522babe077f477816cf9d124 とかがやばい。
+				# 1000だと、 ./build/a578572061c49b5429968f8644ca95508a0473ac とかもやばい。
 			idents = list(set(idents))
 			
 			# data augumentation
@@ -239,7 +283,7 @@ for fn in srcs:
 				nds = []
 				for d in idents:
 					while True:
-						v = random.randint(0,99) #VAR_MAX 
+						v = random.randint(0,60) #VAR_MAX 
 						if v in nds:
 							continue
 						nds.append(v)
@@ -256,6 +300,8 @@ for fn in srcs:
 			pass
 
 
+
+
 """
 ./build/0848b888848180a1ae75b12bede3681371189593.pp.c:9:19: warning: trigraph ignored [-Wtrigraphs]
   char *s8 = "??\\??=";                 ^
@@ -267,7 +313,8 @@ for fn in srcs:
 #lvoc = len(vocab_src)
 #vocab_src = list(map(lambda xy: xy[1],vocab_src))
 vocab_src = list(vocab_src)
-print(vocab_src)
+sys.stderr.write("vocab_src_len: %d\n" % len(vocab_src))
+#print(vocab_src)
 #exit()
 data = list(map(lambda xy: (list(map(lambda t: int(t,16),xy[0])),list(map(lambda t: vocab_src.index(t) if t in vocab_src else lvoc,xy[1]))),data))
 #data = list(map(lambda xy: (list(map(lambda t: t,xy[0])),list(map(lambda t: vocab_src.index(t) if t in vocab_src else lvoc,xy[1]))),data))
@@ -275,8 +322,13 @@ data = list(map(lambda xy: (list(map(lambda t: int(t,16),xy[0])),list(map(lambda
 
 #data = list(map(lambda xy: (list(map(lambda t: int(t,16),xy[0])),xy[1]),data))
 
-print('data = ' + str(data))
-print('c_vocab = ' + str(vocab_src))  
+
+#print('data = ' + str(data))
+#print('c_vocab = ' + str(vocab_src))  
+
+import pickle
+with open('data.pickle','wb') as fp:
+	pickle.dump((data,vocab_src),fp)
 
 def show_data():
 	for k,vs in data:

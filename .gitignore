@@ -11,3 +11,7 @@ result/
 tes.py
 tes.sh
 correspond_table.txt
+log/
+save_models/
+tes.c
+data.pickle

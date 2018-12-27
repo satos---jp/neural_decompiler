@@ -7,6 +7,7 @@ import chainer.links as L
 import chainer.functions as F
 from chainer import training
 from chainer.training import extensions
+from chainer import serializers
 
 def sequence_embed(embed, xs):
 	x_len = [len(x) for x in xs]
@@ -110,38 +111,44 @@ import datetime
 def getstamp():
 	return datetime.datetime.today().strftime("%Y_%m_%d_%H_%M_%S")
 
-import data
 import code
 import edit_distance
 import random
+import pickle
 
 def main():
 	n_layer = 4
 	n_unit = 128
 	
 	n_maxlen = 100
-	#data.data = list(filter(lambda xy: len(xy[0])<20 and len(xy[1])<10,data.data))
-	data.data = list(filter(lambda xy: len(xy[1])<n_maxlen,data.data))
-	print(len(data.data))
 	
-	lds = len(data.data)
-	train_data = data.data[:int(lds*0.8)]
-	test_data = data.data[int(lds*0.8):]
+	with open('data.pickle','rb') as fp:
+			(data,c_vocab) = pickle.load(fp)
+	
+	#data.data = list(filter(lambda xy: len(xy[0])<20 and len(xy[1])<10,data.data))
+	data = list(filter(lambda xy: len(xy[1])<n_maxlen,data))
+	print(len(data))
+	
+	lds = len(data)
+	train_data = data[:int(lds*0.8)]
+	test_data = data[int(lds*0.8):]
 	
 	#source_ids = load_vocabulary(args.SOURCE_VOCAB)
 	#target_ids = load_vocabulary(args.TARGET_VOCAB)
-	maxlen_asm = max(map(lambda xy: len(xy[0]),data.data)) + 1
-	maxlen_c   = max(map(lambda xy: len(xy[1]),data.data)) + 1
+	maxlen_asm = max(map(lambda xy: len(xy[0]),data)) + 1
+	maxlen_c   = max(map(lambda xy: len(xy[1]),data)) + 1
 	print(maxlen_asm,maxlen_c)
 	
 	v_eos_src = 256 #現状asmなので
 	src_vocab_len = v_eos_src + 1
 	
-	v_eos_dst = len(data.c_vocab)
-	c_vocab = data.c_vocab + ['__EOS__']
+	v_eos_dst = len(c_vocab)
+	c_vocab += ['__EOS__']
 	dst_vocab_len = len(c_vocab)
  
 	model = Seq2seq(n_layer, src_vocab_len, dst_vocab_len , n_unit, v_eos_src, v_eos_dst, n_maxlen)
+	serializers.load_npz('models/iter_24100__edit_dist_0.660912__time_2018_12_25_18_46_26.npz',model)
+
 	optimizer = chainer.optimizers.Adam()
 	optimizer.setup(model)
 	
@@ -149,8 +156,8 @@ def main():
 	
 	#ddata  = list(map(lambda xy: np.array(xy[0] + (maxlen_asm - len(xy[0])) * [v_eos],np.int32),data.data))
 	#dlabel = list(map(lambda xy: np.array(xy[1] + (maxlen_src - len(xy[1])) * [v_eos],np.int32),data.data))
-	ddata  = list(map(lambda xy: np.array(xy[0] + [v_eos_src],np.int32),data.data))
-	dlabel = list(map(lambda xy: np.array(xy[1] + [v_eos_dst],np.int32),data.data))
+	ddata  = list(map(lambda xy: np.array(xy[0] + [v_eos_src],np.int32),train_data))
+	dlabel = list(map(lambda xy: np.array(xy[1] + [v_eos_dst],np.int32),train_data))
 	#dataset = chainer.datasets.tuple_dataset.TupleDataset(ddata,dlabel)
 	dataset = list(zip(ddata,dlabel))
 	#code.interact(local={'data': dataset})
@@ -166,7 +173,7 @@ def main():
 		 'elapsed_time']),
 		trigger=(1, 'iteration'))
 
-	logt = 0
+	logt = 24100
 	train_iter_step = 100
 	
 	def calcurate_edit_distance():
@@ -180,9 +187,10 @@ def main():
 		#print(ratio)
 		ratio /= len(ds)
 		return ratio
-		
+	
 	@chainer.training.make_extension()
 	def translate(trainer):
+		eds = calcurate_edit_distance()
 		print('edit distance:',calcurate_edit_distance())
 		nonlocal logt
 		logt += train_iter_step
@@ -200,7 +208,9 @@ def main():
 				#print('# result_array : ' + ' '.join(["%d" % y for y in result]))
 				res += ('# result : ' + result_sentence) + "\n"
 			fp.write(res)
-
+		
+		serializers.save_npz('models/iter_%s__edit_dist_%f__time_%s.npz' % (logt,eds,getstamp()),model)
+		
 		#import code
 		#code.interact(local={'d':model.embed_x})
 		#print('embed data : ', model.embed_x.W)
