@@ -140,6 +140,32 @@ def get_line_from_list(asm,objd):
 	return res
 
 
+# do-simasyo
+# alignof 
+
+# nokeru?
+# restrict register volatile
+
+# hihyouzyun
+# typeof
+c_keywords = 	[
+	'break', 'case','char','const', 'continue','default', 'do', 'double', 'else', 'enum', 'extern', 'float', 'for', 
+	'goto', 'if', 'inline','int','long','register','restrict', 'return','short', 'signed','sizeof','static','struct', 'switch','typedef', 
+	'union', 'unsigned', 'void',  'while', 'volatile'
+]
+
+# ellipsis ...   (fmt,...)
+c_operator_symbls = [
+	'period', 'star',  'arrow','question', 'colon', 'semi', 'ellipsis', 'eof',  
+	'plus', 'minus', 'slash','percent', 'lessless','minusminus', 'plusplus', 'greatergreater',
+	'equalequal', 'ampamp', 'amp', 'pipepipe', 'pipe', 'caret', 'exclaim','comma', 'less', 'tilde', 'greater', 
+	'equal', 'percentequal', 'pipeequal', 'lesslessequal','minusequal','plusequal',  'greaterequal',  'greatergreaterequal', 'ampequal',  'starequal', 'caretequal', 'lessequal', 'slashequal', 'exclaimequal', 
+	'r_paren', 'l_paren', 'l_brace', 'r_brace', 'l_square', 'r_square', 
+	 'typeof',  
+]
+
+
+
 class InvalidToken(Exception):
 	pass
 
