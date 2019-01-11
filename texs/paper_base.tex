@@ -1,0 +1,176 @@
+\documentclass[senior,final,11pt]{iscs-thesis}
+%論文の種類とフォントサイズをオプションに
+%\usepackage{graphicx}% 必要に応じて
+%\usepackage{mysettings}% 自分用設定
+%-------------------
+\etitle{Neural Network based Decompiler for Machine Coding}
+\jtitle{ニューラルネットを用いた機械語のための逆コンパイラ}
+
+\eauthor{Sota Sato}
+\jauthor{佐藤聡太}
+\esupervisor{Masashi Sugiyama}
+\jsupervisor{杉山将}
+\supervisortitle{Professor} % Professor, etc.
+
+\date{December 11, 2018}
+%-------------------
+
+
+\newcommand{\argmax}{\mathop{\rm arg\,max}\limits}
+\newcommand{\argmin}{\mathop{\rm arg\,smin}\limits}
+
+\usepackage{listings}
+
+\lstdefinestyle{myCustomMatlabStyle}{
+  language=C,
+  numbers=none,
+  stepnumber=1,
+  numbersep=10pt,
+  tabsize=2,
+  showspaces=false,
+  showstringspaces=false
+}
+
+
+\lstset{%
+  basicstyle={\tiny},%
+  commentstyle={\tiny\itshape},%
+  keywordstyle={\tiny\bfseries},%
+  % style={myCustomMatlabStyle},
+  stringstyle={\tiny\ttfamily},
+  frame={tb},
+  breaklines=true,
+  columns=[l]{fullflexible},%
+  numbers=left,%
+  xrightmargin=0zw,%
+  xleftmargin=3zw,%
+  numberstyle={\scriptsize},%
+  stepnumber=1,
+  numbersep=1zw,%
+  lineskip=-0.5ex%
+}
+
+
+
+\begin{document}
+\begin{eabstract}
+A decompiler is a tool for recovering a source code from compiled binary data.
+There are various decompilers, but they often output a source code that is not intelligible to humans. 
+In this thesis, we tried to apply machine translation techniques to generate human intelligible decompiled source codes. 
+More specifically, we propose to use recurrent neural networks with attention, which are useful for machine translation. 
+In experiments, we use source codes collected from open source projects and their binary data for training and evaluating the neural networks.
+\end{eabstract}
+\begin{jabstract}
+逆コンパイラはコンパイル後のバイナリデータからソースコードを復元するためのツールである。
+様々な逆コンパイラが存在するが、既存の逆コンパイラはしばしば人間にとって分かりにくいソースコードを出力する。
+そこで本論文では、統計的機械翻訳の技術を逆コンパイラに用いた、解析者にとってわかりやすいソースコードを出力する逆コンパイラを提案する。
+具体的には、機械翻訳において有用とされる注意機構付き再帰型ニューラルネットワークを用いる。
+実験では、オープンソースプロジェクトから収集したソースコードとそのバイナリデータを用いてニューラルネットワークを学習し、その性能を検証した。
+\end{jabstract}
+
+\maketitle
+
+\chapter{Introduction}
+% For dinamic analysis, malware is executed in the sandbox and the behaviour is examined with the changes ocuuring in the sandbox. 
+% Usually, there are two malware analysis approach, the dinamic analysis and the static analysis.
+% In the static analysys, the behaviour of the malware is analysed by 
+
+These days, the amount of malware has been increasing rapidly.
+So the development of malware analysis tools, such as decompilers, has been becoming important.
+A decompiler is a tool for analysing the behavior of malwares. 
+This tool generates C-like pseudocode which represents the behaviour of the malware, and analyst can infer the behavior of the malware with the pseudocode.
+This is much easier compare to analysing raw binary. 
+
+
+But sometimes the decompiler generate  unstructured code, which calls for some effort to understand the behavior of the program. 
+This is due to the flexibility of the high level language. If the decompiler chooses a human-friendly representation of the language as the result of decompiling, we can analyze malware with less effort. 
+
+In this paper, we apply a statistical machine translation tequnique for a decompiler to generate human-friendly pseudocode. 
+This idea was already mentioned by Katz et al. [1], in which they use end-to-end machine translation with Recurrent Neural Networks.
+
+
+\section{Decompiler}
+
+% 573 words.
+
+A compiler is a program which translates source code written in language X into other language Y. 
+Usually, X is high-level language and Y is relatively low-level language. 
+For example, clang compiler translates C language into x64 assembly language, javac compiler translates Java to Java virtual machine code.
+
+A decompiler is a program which aims to reverse the process of a compiler, retrive a source code of the high-level language X from the source code of the low-level language Y. 
+This reversing process is usually insufficient or impossible.
+This is because many informaitions, such as variaible name or function name, are lost when compiling.
+Additionaly, the program structure descripted in the high level language are lost too. 
+For example, a simple {\sl for statement} can be represented by the combination of a {\sl while statement} and an {\sl if statement}, or the combination of {\sl if statement} and {\sl goto statement}. 
+So a decompiler can't distinguish their representation difference, despite in the real situation {\sl for statement} are often used and {\sl goto statement} are rarely. 
+
+Existing deterministic decompilers are made up with many steps similer to compilers. 
+They find patterns in binary data, convert them to more high-level structure, and chain them so that they finally generate high-level psudecode.
+Their output psudecodes are sometimes wrong or hard to understand.
+
+% https://github.com/torvalds/linux/blob/70c25259537c073584eb906865307687275b527f/lib/rbtree.c#L528
+
+
+\begin{figure}
+	\begin{tabular}{cc}
+		\begin{minipage}[t]{0.5\hsize}
+			\lstinputlisting[]{rb_tree.c}
+		\end{minipage}
+		\begin{minipage}[t]{0.5\hsize}
+			\lstinputlisting[]{hopper.c}
+		\end{minipage}
+		\\
+		\begin{minipage}[c]{0.5\hsize}
+			\lstinputlisting[]{snowman.c}
+		\end{minipage}
+		\begin{minipage}[c]{0.5\hsize}
+			\lstinputlisting[]{handdecomp.c}
+		\end{minipage}
+	\end{tabular}
+	\caption{ hogehugapiyo.}
+	\label{fig:cw}
+\end{figure}
+
+
+Figure~\ref{fig:cw} shows the example decompilation result of the Hopper disassembler and the snowman decompiler and a hand decompilation for a C language code.
+The output of Hopper decompiler seems not so bad, but some essential statements are missing and there are some verbose variables.
+The output of snowman decompiler also seems broken. 
+The snowman decompiler finds some variablels are pointer of a structure, but fails to detect the range of the function, and generates many unneccesary casts.
+Idealy, the decompiler can find correct function ranges and structure of statements as a hand decompilation result, but the decompilers failed.
+
+In this paper, we try to apply statistical approach, specifically SMT (statical machine translation) technique, for decompilation.
+The decompilation problem is folmulated as follows. 
+Given $sx$ as a source code of domain language X, compiler generates $sy$ as a code of target language Y with probability $p(sy|sx)$. 
+We assume the prior distribution $p(sx)$ as the human-generated souce code. 
+With that assumption, the provability of decompilation $p(sx|sy)$ is in proportion to $p(sy|sx)p(sx)$ according to the bayesian low. 
+The $\argmax_{sx} p(sx|sy)$ is considered as the best human-intelligible decompilation result for the low-level code $sy$,  
+so we try to estimate $ \argmax_{sx} p(sy|sx)p(sx)$ for decompilation result.
+And if the compiler is deterministic, there wolud be a function $f$ which represents the compiler and $p(f(sx)|sx) = 1$,
+then the objective becomes to $ \argmax_{sx,f(sx)=sy} p(sx)$.
+
+The distribution $p(sx)$ is approximated by collecting source code from open source projects.
+So if we had enough high-level source code data, we could choose the most popular high-level source code which generats given low-level code for the decompile result.
+But high-level source code data can't be comprehensive.
+So we have to model the structure of compilation process somehow.
+We modeled the structure by the LSTM, which is commonly used in resent SMT techniques.
+
+
+
+\section{Deep learning and LSTM}
+
+
+\chapter{Related works}
+
+
+
+\chapter{Related works}
+
+
+\chapter{Preliminaries}
+
+
+\chapter{Imprementation and Experiment}
+First, we collect data sets from online 
+
+
+\end{document}

@@ -3,8 +3,12 @@
 *.txt
 *.c
 *.s
+*.o
 __pycache__/
 build/
+.gdb_history
+
+
 data.py
 seq2seq.py
 texs/abstract.*
@@ -18,4 +22,10 @@ correspond_table.txt
 log/
 save_models/
 data.pickle
+texs/*.pdf
+texs/*.log
+texs/*.aux
+texs/*.dvi
+tesx.tokenized.c.astdump
+clang_fromnewsource/
 

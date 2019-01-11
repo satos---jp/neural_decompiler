@@ -48,8 +48,9 @@ class Seq2seq(chainer.Chain):
 		batch = len(xs)
 		# None represents a zero vector in an encoder.
 		hx, cx, _ = self.encoder(None, None, exs)
+		#print(hx.shape,cx.shape)
 		_, _, os = self.decoder(hx, cx, eys)
-
+		
 		#print(list(map(lambda x: len(x),os)))
 		
 		# It is faster to concatenate data before calculating loss

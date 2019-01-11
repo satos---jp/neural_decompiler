@@ -1,7 +1,7 @@
 #! /usr/bin/env /home/satos/sotsuron/neural_decompiler/python_fix_seed.sh
 
 from clang.cindex import Config,Index,CursorKind
-Config.set_library_path("/usr/lib/llvm-6.0/lib/")
+Config.set_library_path("/usr/lib/llvm-8/lib/")
 
 import code,os
 
@@ -25,7 +25,7 @@ def traverse(x,d,fnsrc):
 	rule = (str(x.kind),len(cs))
 	rules |= set([rule])
 	
-	if x.kind == CursorKind.UNEXPOSED_EXPR and len(cs)>=2:
+	if x.kind == CursorKind.CONST_ATTR:# and len(cs)>=2:
 		tfn,src = fnsrc
 		st,ed = x.extent.start.line,x.extent.end.line
 		nsrcs = src[st-1:ed]

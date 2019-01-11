@@ -1,0 +1,38 @@
+A compiler is a program which translates source code written in language X into other language Y. 
+Usually, X is high-level language and Y is relatively low-level language. 
+For example, clang compiler translates C language into x64 assembly language, javac compiler translates Java to Java virtual machine code.
+
+A decompiler is a program which aims to reverse the process of a compiler, retrive a source code of the high-level language X from the source code of the low-level language Y. 
+This reversing process is usually insufficient or impossible.
+This is because many informaitions, such as variaible name or function name, are lost when compiling.
+Additionaly, the program structure descripted in the high level language are lost too. 
+For example, a simple {\sl for} loop can be represented by the combination of a {\sl while} loop and an {\sl if} statement, or the combination of {\sl if} and {\sl goto} statement, which is more primitive. 
+So a decompiler can't distinguish their representation difference, despite in the real situation {\sl for} loop are often used and {\sl goto} statement are rarely. 
+
+Existing deterministic decompilers are made up with many steps similer to compilers. 
+They find patterns in binary data, convert them to more high-level structure, and chain them so that they finally generate high-level psudecode.
+Their output psudecodes are sometimes wrong or hard to understand.
+
+% https://github.com/torvalds/linux/blob/70c25259537c073584eb906865307687275b527f/lib/rbtree.c#L528
+Figure 1 shows the example decompilation result of the Hopper disassembler and the snowman decompiler and a hand decompilation for a C language code.
+The output of Hopper decompiler seems not so bad, but some essential statements are missing and there are some verbose variables.
+The output of snowman decompiler also seems broken. 
+The snowman decompiler finds some variablels are pointer of a structure, but fails to detect the range of the function, and generates many unneccesary casts.
+Idealy, the decompiler can find correct function ranges and structure of statements as a hand decompilation result, but the decompilers failed.
+
+In this paper, we try to apply statistical approach, specifically SMT (statical machine translation) technique, for decompilation.
+The decompilation problem is folmulated as follows. 
+Given sx as a source code of domain language X, compiler generates sy as a source code of target language with probability p(sy|sx). 
+We assume the prior distribution p(sx) as the human-generated souce code. 
+With that assumption, the provability of decompilation p(sx|sy) is in proportion to p(sy|sx)p(sx) according to the bayesian low. 
+The sy_decomp = argmax(sx) p(sx|sy) is considered as the best human-intelligible decompilation result for the low-level code sy,  
+so we try to generate argmax(sx) p(sy|sx)p(sx) for decompilation result.
+And if the compiler is deterministic, there wolud be a function f which represents the compiler and p(f(sx)|sx) = 1,
+then sy_decomp = argmax sx, f(sx) = sy, p(sx).
+
+The distribution p(sx) is approximated by collecting source code from open source projects.
+So if we had enough high-level source code data, we could choose most popular high-level source code which generats given low-level code for the decompile result.
+But high-level source code data can't be comprehensive, so we have to model the structure of compilation process somehow.
+We modeled the structure by the LSTM, which is commonly used in resent SMT techniques.
+
+

@@ -13,3 +13,4 @@ mv 2048.c/ 2048_c :: フォルダ名がな～...
 ../corpus_folders/linux-0.11/kernel/vsprintf.c :: 文字。
 ../corpus_folders/Simple-MSIL-Compiler/netil/base_conv.c :: 文字。
 rm ./build/0848b888848180a1ae75b12bede3681371189593.objd :: なんかtirgraphがある
+../../corpus_folders/kmnsim/src/all.c :: 文字

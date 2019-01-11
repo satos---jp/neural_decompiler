@@ -2,6 +2,15 @@
 
 from matplotlib import pyplot as plt
 
+
+with open('ml.txt') as fp:
+	s = fp.readlines()
+	s = list(map(lambda x: eval(x.split('_')[5]),s))
+
+plt.plot(s)
+plt.show()
+exit()
+
 import pickle
 
 ds = pickle.load(open('dist_dist.pickle','rb'))
