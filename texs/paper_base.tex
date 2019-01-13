@@ -20,6 +20,8 @@
 \newcommand{\argmin}{\mathop{\rm arg\,smin}\limits}
 
 \usepackage{listings}
+\usepackage{cite}
+\usepackage{url}
 
 \lstdefinestyle{myCustomMatlabStyle}{
   language=C,
@@ -88,6 +90,37 @@ This is due to the flexibility of the high level language. If the decompiler cho
 In this paper, we apply a statistical machine translation tequnique for a decompiler to generate human-friendly pseudocode. 
 This idea was already mentioned by Katz et al. [1], in which they use end-to-end machine translation with Recurrent Neural Networks.
 
+\section{Previous Studies}
+\subsection{Decompilation techniques}
+
+% Compiler and Optimization Level Estimation for Improving Anti-malware Technologies
+
+% 
+
+\subsection{Improvement of decompilation results}
+In this paper, we don't try to recover the function name and variable name. 
+But for hand-decompilation, sometimes the name can be estimated by the functionality of the variable.
+For example, assume there is a variable X which seems to have a C struct type and has two fields P and Q.
+And there are two functions F and G which operate with X. 
+The function F recieves X and other value V, assigns V to the memory indicated by P, adds 8 to P and increments Q. 
+The function G recieves X, subs 8 from P and decrements Q, then returns the value indicated by P.
+In the situation, analyst can estimate X represents a stuck structure, and the function F is for push function, G is for pop function.
+
+\cite{name_recover_from_decompile_result} is the paper for tuckling this task.
+
+
+
+This kind of name estimation also appears in the context of deobfsucation.
+Deobfsucation is a reverse process of obfsucation.
+Obfsucation is a technique to modify the program source code so that the code becomes hard to understand for humans. 
+Obfsucation is used for hiding the behaviour of a program whose source code have to be distributed.
+For example, 
+
+
+\subsection{Deep learning for programming task}
+
+
+\chapter{Problem Settings and Methots}
 
 \section{Decompiler}
 
@@ -154,23 +187,90 @@ But high-level source code data can't be comprehensive.
 So we have to model the structure of compilation process somehow.
 We modeled the structure by the LSTM, which is commonly used in resent SMT techniques.
 
+\section{LSTM}
+To generate $ \argmax_{sx} p(sx|sy)$, we decomposit $ p(sx|sy) = p([sx_1, \dots, sx_n] |sy) $ to $ p(sx_1|sy,[]) \dots p(sx_n|sy,[sx_1,\dots,sx_{n-1}]) $,
+where $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ represents the probability that the token $ sx_k $ follows to the sequence $ [sx_1,\dots,sx_{k-1}] $ 
+when the input sequence is $ sy $. We try to estimate the probability $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ by LSTM.
+LSTM is 
 
 
-\section{Deep learning and LSTM}
+\chapter{Experiments}
+
+\section{Data Collection}
+% 219 words
+First, we collected source codes by crawling \cite[GitHub]{github}, cloning about 900 repositories with C language topic, 
+and recursevily searched each folders to enumerate C language source code.
+From each source code, we generated pairs of C source code fragment and x64 assembly code corresponds to the C fragment.
+Some sample flagments are shown in figure~\ref{fig:pairsofflagments}. 
+
+% Here the reason for fragments?
+
+\begin{figure}
+	\begin{tabular}{cc}
+	\end{tabular}
+	\caption{Sample data flagments}
+	\label{fig:pairsofflagments}
+\end{figure}
+
+The pairs were generated as follows. Let {\sl S0} be a original C source code.
+\begin{enumerate}
+\item Remove all preprocessor, such as {\sl \#include}, in {\sl S0} to generate preprosessed C code {\sl S1}. 
+\item Tokenize {\sl S1} and rearrange them in {\sl S2} so that there is exactly one token for each lines. 
+\item 
+Compile {\sl S2} by gcc (GNU C compiler) with no optimization (-O0) and debug option to get assembly code {\sl S3}. 
+With debug option, {\sl S3} contains informations about the source code position which each assembly operations are originated from.
+\item Assemble {\sl S3} to object file {\sl S4} and disassemble {\sl S4} to get information eliminated assembly code {\sl S5}.
+\item 
+Parse {\sl S2} with clang to get AST (abstract syntax tree) of the source code. 
+And for each subtree of AST, we can get C flagment source code which corresponds to the subtree, 
+and we can get assembly code corresponds to the C flagment by employing {\sl S5} combine with {\sl S3}.
+\end{enumerate}
+
+The C flagment and assembly code pairs are preprocessed for the training and testing data.
 
 
-\chapter{Related works}
+\section{Data Preprocessing}
+
+% 244 words
+In order to apply LSTM, input and output for the LSTM must be the sequence of tokens. 
+So we have to preprocess the assembly data and C flagments to the token sequences by somehow.
+
+The assemblies were preprocessed in two ways.
+First way is the raw binary integers. The assemblies are finally assembled to the sequence of the one byte integers, ranged from 0 to 255.
+So the one byte integer sequences can be directly used for input sequences.
+Second way is the tokenized sequence of assemby codes. 
+The disassemble opecodes and operands in {\sl S5} are splited to symbols, and concatnated the sequences to one sequence, then we modified followings.
+\begin{itemize}
+\item For each end of the operations, the {\sl ENDLINE} symbol is added to indicate the end of operation.
+\item 
+The relative access of code address, such as {\sl call} or {\sl jump} operations, 
+are relabeled like alpha-conversion for position independentness of the code and for reducing the vocabulary size.
+\item The big integer values are substituted. 
+In detail, the intager in the range from -255 to 256 are preverved as it is, and the other intengeres are substituted with the {\sl \_\_HEX\_\_} symbol.
+This also reduces the vocabulary size.
+\end{itemize}
+
+The C source codes were preprocessed like the second way of the assembly preprosess.
+C source code was tokenized to the sequence and preprocessed with following modifications.
+\begin{itemize}
+\item Function names and variable names were renamed like alpha-conversion.
+\item Big integer values were substituted too. 
+\item All string literals were replaced to the {\sl \_\_STRING\_\_} symbol.
+\end{itemize}
 
 
 
-\chapter{Related works}
+
+\section{Model Configuration}
+The training model was implemented with Chainer 6.0.0b1.
+The 
 
 
-\chapter{Preliminaries}
+\chapter{Results}
+\chapter{Discussion}
+\chapter{Conclusion}
 
-
-\chapter{Imprementation and Experiment}
-First, we collect data sets from online 
-
+\bibliographystyle{plainnat}
+\bibliography{reference}
 
 \end{document}

@@ -3,17 +3,11 @@ from clang.cindex import CursorKind
 
 # liteeal can be expr
 # expr can be stmt
-nont_reduce = [
-	('toplevel',[
-		CursorKind.TRANSLATION_UNIT
-	]),
-	('type',[
-		CursorKind.TYPE_REF,
-	]),
-	('label',[
-		CursorKind.LABEL_REF,
-	]),
-	('expr',[
+nont_reduce = {
+	'toplevel': [CursorKind.TRANSLATION_UNIT],
+	#'type': CursorKind.TYPE_REF,
+	'labelref': [CursorKind.LABEL_REF],
+	'expr': [
 		CursorKind.ARRAY_SUBSCRIPT_EXPR,
 		CursorKind.BINARY_OPERATOR,
 		CursorKind.CALL_EXPR,
@@ -31,8 +25,8 @@ nont_reduce = [
 		CursorKind.STRING_LITERAL,
 		CursorKind.UNARY_OPERATOR,
 		CursorKind.UNEXPOSED_EXPR,
-	]),
-	('stmt',[
+	],
+	'stmt': [
 		CursorKind.BREAK_STMT,
 		CursorKind.CASE_STMT,
 		CursorKind.COMPOUND_STMT,
@@ -49,8 +43,8 @@ nont_reduce = [
 		CursorKind.SWITCH_STMT,
 		CursorKind.WHILE_STMT,
 		CursorKind.WHILE_STMT,
-	]),
-	('decl',[
+	],
+	'decl': [
 		CursorKind.ENUM_CONSTANT_DECL,
 		CursorKind.ENUM_DECL,
 		CursorKind.FIELD_DECL,
@@ -59,11 +53,12 @@ nont_reduce = [
 		CursorKind.TYPEDEF_DECL,
 		CursorKind.UNION_DECL,
 		CursorKind.VAR_DECL,
-	]),
-]
+		CursorKind.FUNCTION_DECL,
+	],
+}
 
 
-reduce_data = nont_reduce
+reduced_type = dict(sum(map(lambda ds: list(map(lambda v: (v,ds[0]),ds[1])), nont_reduce.items()),[]))
 #def get_node_type
 
 # None is for pass.
@@ -72,57 +67,57 @@ cfg = {
 	CursorKind.ARRAY_SUBSCRIPT_EXPR: ['expr','expr'],
 	CursorKind.ASM_LABEL_ATTR: None,	
 	CursorKind.ASM_STMT: None,
-	CursorKind.BINARY_OPERATOR: ['expr','binary_op','expr'], 
+	CursorKind.BINARY_OPERATOR: ['expr','binop','expr'], 
 	CursorKind.BREAK_STMT: [],
-	CursorKind.CALL_EXPR: ['expr','expr_list'],
+	CursorKind.CALL_EXPR: ['expr',['expr','list']],
 	CursorKind.CASE_STMT: ['expr','stmt'],
-	CursorKind.CHARACTER_LITERAL: ['literal'],
-	CursorKind.COMPOUND_ASSIGNMENT_OPERATOR: ['expr','compound_assign_op','expr'],
+	CursorKind.CHARACTER_LITERAL: ['charliteral'],
+	CursorKind.COMPOUND_ASSIGNMENT_OPERATOR: ['expr','casop','expr'],
 	CursorKind.COMPOUND_LITERAL_EXPR: None, # TODO(satos)   (struct S){.x=1}  or (int[]){1,2,3,some_int} like.
-	CursorKind.COMPOUND_STMT: ['stmt_list'],
+	CursorKind.COMPOUND_STMT: [['stmt','list']],
 	CursorKind.CONDITIONAL_OPERATOR: ['expr','expr','expr'],
 	CursorKind.CONST_ATTR: None, # __attribute__((__const__))   skip. (or remove?)
 	CursorKind.CONTINUE_STMT: [],
-	CursorKind.CSTYLE_CAST_EXPR: ['type_list','expr'], #TODO(satos) ayasii  -> # retrive type from .type.get_canonical().spelling 
-	CursorKind.CXX_UNARY_EXPR: ['unary_op','expr'],  # only sizeof like things.
-	CursorKind.DECL_REF_EXPR: ['var'],
-	CursorKind.DECL_STMT: ['decl_list'],
+	CursorKind.CSTYLE_CAST_EXPR: ['type','expr'], #TODO(satos) ayasii  -> # retrive type from .type.get_canonical().spelling 
+	CursorKind.CXX_UNARY_EXPR: ['expr','unop'],  # only sizeof like things.
+	CursorKind.DECL_REF_EXPR: ['name'],
+	CursorKind.DECL_STMT: [['decl','list']],
 	CursorKind.DEFAULT_STMT: ['stmt'],
 	CursorKind.DO_STMT: ['stmt','expr'],
-	CursorKind.ENUM_CONSTANT_DECL: ['expr_option'],
-	CursorKind.ENUM_DECL: ['decl_list'],
-	CursorKind.FIELD_DECL: ['var','type_list'], # [int hogehuga] in [struct{int hogehuga};]
-	CursorKind.FLOATING_LITERAL: ['literal'],
-	CursorKind.FOR_STMT: ['expr_option','expr_option','expr_option','stmt'],
-	CursorKind.FUNCTION_DECL: ['type_list','stmt_option'], # TODO(satos) ayasii
-	CursorKind.GOTO_STMT: ['label'],
-	CursorKind.IF_STMT: ['expr','stmt','stmt_option'],
+	CursorKind.ENUM_CONSTANT_DECL: ['name',['expr','option']],
+	CursorKind.ENUM_DECL: ['name',['decl','list']],
+	CursorKind.FIELD_DECL: ['type','name'], # [int hogehuga] in [struct{int hogehuga};]
+	CursorKind.FLOATING_LITERAL: ['floatliteral'],
+	CursorKind.FOR_STMT: [['stmt','option'],['expr','option'],['expr','option'],'stmt'],
+	CursorKind.FUNCTION_DECL: ['type','name',['decl','list'],['stmt','option']], # TODO(satos) ayasii
+	CursorKind.GOTO_STMT: ['labelref'],
+	CursorKind.IF_STMT: ['expr','stmt',['stmt','option']],
 	CursorKind.IMAGINARY_LITERAL: None, # TODO(satos) imaginary number. currently omit. 
 	CursorKind.INDIRECT_GOTO_STMT: None, # TODO(satos) like goto *hoge. Is this valid in standard C?
-	CursorKind.INIT_LIST_EXPR: ['expr_list'], # TODO(satos) sometimes too long, restrict?
-	CursorKind.INTEGER_LITERAL: ['literal'],
+	CursorKind.INIT_LIST_EXPR: [['expr','list']], # TODO(satos) sometimes too long, restrict?
+	CursorKind.INTEGER_LITERAL: ['integerliteral'],
 	CursorKind.LABEL_REF: ['label'],
 	CursorKind.LABEL_STMT: ['label','stmt'],
 	CursorKind.MEMBER_REF: ['var'], # x in {.x=3};
-	CursorKind.MEMBER_REF_EXPR: ['expr'],
+	CursorKind.MEMBER_REF_EXPR: ['expr','memberrefop','name'],
 	CursorKind.NULL_STMT: [],
 	CursorKind.PACKED_ATTR: None, # __attribute__((packed))   skip. (or remove?)
 	CursorKind.PAREN_EXPR: ['expr'],
-	CursorKind.PARM_DECL: ['type_list'], # f(int,int)    argument type. 
+	CursorKind.PARM_DECL: ['type','name'], # f(int,int)    argument type. 
 	CursorKind.PURE_ATTR: None, # __attribute__((__pure__))    skip. (or remove?)
-	CursorKind.RETURN_STMT: ['expr_option'],
-	CursorKind.STRING_LITERAL: ['literal'],
-	CursorKind.STRUCT_DECL: ['decl_list'],
+	CursorKind.RETURN_STMT: [['expr','option']],
+	CursorKind.STRING_LITERAL: ['stringliteral'],
+	CursorKind.STRUCT_DECL: ['name',['decl','list']],
 	CursorKind.SWITCH_STMT: ['expr','stmt'],
 	CursorKind.StmtExpr: None, # return ({int x = 3;4;});   GNU extension?, skip.
-	CursorKind.TRANSLATION_UNIT: ['decl_list'],
+	CursorKind.TRANSLATION_UNIT: [['decl','list']],
 	CursorKind.TYPEDEF_DECL: None, # remove typedef information (normalize)
 	CursorKind.TYPE_REF: ['var'],
-	CursorKind.UNARY_OPERATOR: ['unary_op','expr'], #what is difference with CursorKind.CXX_UNARY_EXPR
+	CursorKind.UNARY_OPERATOR: ['unop','expr'], #what is difference with CursorKind.CXX_UNARY_EXPR
 	CursorKind.UNEXPOSED_ATTR: None, # __attribute__((__nothrow__))   skip. (or remove?)
 	CursorKind.UNEXPOSED_EXPR: ['expr'], # Implicit cast (len==1) or initialize struct like .d=3 (len==2) or other insane expressions
-	CursorKind.UNION_DECL: ['decl_list'],
-	CursorKind.VAR_DECL: ['type_decl','expr_option'], # ayasii
+	CursorKind.UNION_DECL: ['name',['decl','list']],
+	CursorKind.VAR_DECL: ['type','name',['expr','option']], # ayasii
 	CursorKind.VISIBILITY_ATTR: None, # __attribute__((visibility("hidden"))). skip.
 	CursorKind.WHILE_STMT: ['expr','stmt'],
 }
@@ -142,55 +137,162 @@ CursorKind.STRUCT_DECL
 CursorKind.UNION_DECL
 """
 
+def get_var_length(ty):
+	return 0
+
+def s2tree_with_parenthes(s):
+	r = ""
+	res = []
+	while len(s)>0:
+		if s[0]=='(':
+			if len(r)>0:
+				res.append(r)
+			r = ""
+			d,s = s2tree_with_parenthes(s[1:])
+			res.append(d)
+			assert s[0]==')'
+			s = s[1:]
+		elif s[0]==')':
+			break
+		else:
+			r += s[0]
+			s = s[1:]
+	if len(r)>0:
+		res.append(r)
+	return res,s
+
+def strize(x):
+	if type(x) is str:
+		return x
+	else:
+		return '(' + ''.join(map(strize,x)) + ')'
+
+def type_embedding(ty,na):
+	print(ty,na)
+	td,s = s2tree_with_parenthes(ty)
+	print(td,s)
+	assert len(s)==0
+	
+
+	
+	def f(nt):
+		if len(nt)==1:
+			if '[' in nt[0]:
+				p = nt[0].index('[')
+				return nt[0][:p] + ' ' + na + nt[0][p:]
+			else:
+				return nt[0] + ' ' + na
+		elif len(nt)==2:
+			return nt[0] + ' ' + na + strize(nt[1])
+		elif len(nt)==3:
+			return nt[0] + '(' + f(nt[1]) + ')' + strize(nt[2])
+		else:
+			assert False
+	
+	return f(td)
+	#return "%s %s" % (ty,na)
+
+
+def function_decl_func(cs):
+	print('cs',cs)
+	ty = cs[0]
+	na = cs[1]
+	cs = cs[2:]
+	td,s = s2tree_with_parenthes(ty)
+	print(td)
+	assert len(s)==0 and len(td)==2 and type(td[1]) is list
+	arg_types_len = 0
+	if len(td[1])!=0:
+		arg_types_len = 1
+		for d in td[1]:
+			if type(d) is list:
+				continue
+			else:
+				print(d,d.count(','))
+				arg_types_len += d.count(',')
+	
+	print(arg_types_len)
+	arg_names = cs[:arg_types_len]
+	cs = cs[arg_types_len:]
+	assert len(cs)<=1
+	if len(cs)==0:
+		body = ';'
+	else:
+		body = cs[0]
+	
+	return td[0] + na + '(' + ','.join(map(lambda ab: type_embedding(*ab),arg_names)) + ')' + body
+
+
+def stmts2str(cs):
+	res = ''
+	for d in cs:
+		ds = d.strip()
+		if len(ds)==0 or ds[-1] in [';','}']:
+			res += d + '\n'
+		else:
+			res += d + ';\n'
+	return res 
+
+
+
+class Oteage(Exception):
+	pass
+
+def for_check(cs):
+	s = cs[0].strip()
+	if ';' in s[:-1]:
+		raise Oteage
+	return 'for(' + cs[0] + ('' if s[-1]==';' else ';') + '{1};{2}){3}'.format(*cs)
+
 cfg2str = {
 	CursorKind.ARRAY_SUBSCRIPT_EXPR: '{0}[{1}]',
 	CursorKind.BINARY_OPERATOR: '{0} {1} {2}', 
 	CursorKind.BREAK_STMT: 'break;\n',
 	CursorKind.CALL_EXPR: (lambda cs: cs[0] + '(' + ','.join(cs[1:]) + ')'),
-	CursorKind.CASE_STMT: 'case {0}:\n{1}\n',
+	CursorKind.CASE_STMT: 'case {0}:\n{1};',
 	CursorKind.CHARACTER_LITERAL: ['literal'],
 	CursorKind.COMPOUND_ASSIGNMENT_OPERATOR: '{0} {1} {2}', 
-	CursorKind.COMPOUND_STMT: (lambda cs: '{\n' + ''.join(cs) + '}\n'),#(lambda cs: '{\n\t' + ''.join(cs).replace('\n','\n\t')[:-1] + '}\n'),
+	CursorKind.COMPOUND_STMT: (lambda cs: ('%s' if len(cs)==1 else '{\n%s}\n') % stmts2str(cs)),	#(lambda cs: '{\n\t' + ''.join(cs).replace('\n','\n\t')[:-1] + '}\n'),
 	CursorKind.CONDITIONAL_OPERATOR: '{0} ? {1} : {2}', 
 	CursorKind.CONTINUE_STMT: 'continue;',
-	CursorKind.CSTYLE_CAST_EXPR: ['type_list','expr'], #TODO(satos) ayasii  -> # retrive type from .type.get_canonical().spelling 
-	CursorKind.CXX_UNARY_EXPR: ['unary_op','expr_option'],  # only sizeof like things.
+	CursorKind.CSTYLE_CAST_EXPR: '({0}){1}', #TODO(satos) ayasii  -> # retrive type from .type.get_canonical().spelling 
+	CursorKind.CXX_UNARY_EXPR: '8', #TODO(satos) maybe later ['unary_op','expr_option'],  # only sizeof like things.
 	CursorKind.DECL_REF_EXPR: '{0}',
-	CursorKind.DECL_STMT: (lambda cs: ''.join(cs)),
-	CursorKind.DEFAULT_STMT: 'default:\n{0}\n',
-	CursorKind.DO_STMT: ['stmt','expr'],
-	CursorKind.ENUM_CONSTANT_DECL: ['expr_option'],
-	CursorKind.ENUM_DECL: ['decl_list'],
-	CursorKind.FIELD_DECL: ['var','type_list'], # [int hogehuga] in [struct{int hogehuga};]
+	CursorKind.DECL_STMT: (lambda cs: stmts2str(cs)),
+	CursorKind.DEFAULT_STMT: 'default:\n{0};\n',
+	CursorKind.DO_STMT: 'do{{{0}}}while({1})',
+	CursorKind.ENUM_CONSTANT_DECL: (lambda cs: cs[0] + ('' if len(cs)==1 else ' = ' + cs[1])),  # akirameru
+	CursorKind.ENUM_DECL: (lambda cs: 'enum ' + cs[0] + '{' + ','.join(cs[1:]) + '};'),             # akirameru
+	CursorKind.FIELD_DECL: (lambda cs: type_embedding(cs[0],cs[1]) + ';\n'), # [int hogehuga] in [struct{int hogehuga};]
 	CursorKind.FLOATING_LITERAL: ['literal'],
-	CursorKind.FOR_STMT: 'for({0};{1};{2}){3}',
-	CursorKind.FUNCTION_DECL: (lambda cs: cs[0] + ' ' + cs[1] + (';' if len(cs)==2 else cs[2])),
-	CursorKind.GOTO_STMT: 'goto {0};\n',
+	CursorKind.FOR_STMT: for_check,
+	CursorKind.FUNCTION_DECL: function_decl_func,
+	CursorKind.GOTO_STMT: 'goto {0};',
 	CursorKind.IF_STMT: (lambda cs: 'if(' + cs[0] + ')' + cs[1] + ('' if len(cs)==2 else 'else ' + cs[2])),
 	CursorKind.IMAGINARY_LITERAL: None, # TODO(satos) imaginary number. currently omit. 
 	CursorKind.INDIRECT_GOTO_STMT: None, # TODO(satos) like goto *hoge. Is this valid in standard C?
-	CursorKind.INIT_LIST_EXPR: ['expr_list'], # TODO(satos) sometimes too long, restrict?
+	CursorKind.INIT_LIST_EXPR: (lambda cs: '{' + ','.join(cs) + '}'), # TODO(satos) sometimes too long, restrict?
 	CursorKind.INTEGER_LITERAL: ['literal'],
 	CursorKind.LABEL_REF: '{0}',
 	CursorKind.LABEL_STMT: '{0}:\n{1}',
 	CursorKind.MEMBER_REF: ['var'], # x in {.x=3};
-	CursorKind.MEMBER_REF_EXPR: ['expr'],
+	CursorKind.MEMBER_REF_EXPR: '{0}{1}{2}',
 	CursorKind.NULL_STMT: ';',
 	CursorKind.PAREN_EXPR: '({0})',
-	CursorKind.PARM_DECL: ['type_list'], # f(int,int)    argument type. 
+	CursorKind.PARM_DECL: (lambda cs: cs), # f(int,int)    argument type. 
 	CursorKind.PURE_ATTR: None, # __attribute__((__pure__))    skip. (or remove?)
 	CursorKind.RETURN_STMT: 'return {0};',
 	CursorKind.STRING_LITERAL: ['literal'],
-	CursorKind.STRUCT_DECL: ['decl_list'],
+	CursorKind.STRUCT_DECL: (lambda cs: 'struct ' + cs[0] + '{' + ''.join(cs[1:]) + '};\n'),
 	CursorKind.SWITCH_STMT: 'switch({0}){1}',
 	CursorKind.TRANSLATION_UNIT: (lambda cs: ''.join(cs)),
-	CursorKind.TYPEDEF_DECL: ['type_list'], #ayasii
-	CursorKind.TYPE_REF: ['var'],
-	CursorKind.UNARY_OPERATOR: '{0} {1}', #what is difference with CursorKind.CXX_UNARY_EXPR
+	#CursorKind.TYPEDEF_DECL: (lambda cs: 'typedef ' + type_embedding(cs[0],cs[1])), #ayasii
+	#CursorKind.TYPE_REF: ['var'],
+	CursorKind.UNARY_OPERATOR: (lambda cs: ('{0} {1}' if cs[0][1] else '{1} {0}').format(cs[0][0],cs[1])), #what is difference with CursorKind.CXX_UNARY_EXPR
 	CursorKind.UNEXPOSED_EXPR: (lambda cs: cs[0] if len(cs)==1 else 'INVALID'), # Implicit cast (len==1) or initialize struct like .d=3 (len==2) or other insane expressions
-	CursorKind.UNION_DECL: ['decl_list'],
-	CursorKind.VAR_DECL: (lambda cs: cs[0] + ' ' + cs[1] + ('' if len(cs)==2 else ' = ' + cs[2]) + ';\n'),
-	CursorKind.WHILE_STMT: 'while({0}){1}\n',
+	CursorKind.UNION_DECL: (lambda cs: 'union ' + cs[0] + '{' + ''.join(cs[1:]) + '};\n'),
+	CursorKind.VAR_DECL: (lambda cs: type_embedding(cs[0],cs[1]) + ('=' + cs[2] if len(cs)==3 else '') + ';'),
+	CursorKind.WHILE_STMT: 'while({0}){1}',
 }
 
 	

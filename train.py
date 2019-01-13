@@ -42,6 +42,7 @@ def main():
 	
 	#data.data = list(filter(lambda xy: len(xy[0])<20 and len(xy[1])<10,data.data))
 	data = list(filter(lambda xy: len(xy[1])<n_maxlen,data))
+	data = data[:1000000]
 	print(len(data))
 	
 	lds = len(data)
@@ -62,7 +63,7 @@ def main():
 	c_vocab += ['__EOS__']
 	dst_vocab_len = len(c_vocab)
  
-	model = Seq2seq_with_Att(n_layer, src_vocab_len, dst_vocab_len , n_unit, v_eos_src, v_eos_dst, n_maxlen)
+	model = Seq2seq(n_layer, src_vocab_len, dst_vocab_len , n_unit, v_eos_src, v_eos_dst, n_maxlen)
 	#serializers.load_npz('models/iter_100__time_2019_01_10_02_01_29.npz',model)
 	#serializers.load_npz('save_models/models_prestudy_edit_dist_0.65/iter_47600__edit_dist_0.691504__time_2018_12_28_01_36_30.npz',model)
 
@@ -142,8 +143,8 @@ def main():
 		 'elapsed_time']),
 		trigger=(1, 'iteration'))
 
-	logt = 100
-	train_iter_step = 1
+	logt = 0
+	train_iter_step = 100
 	
 	
 

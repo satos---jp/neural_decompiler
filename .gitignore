@@ -26,6 +26,10 @@ texs/*.pdf
 texs/*.log
 texs/*.aux
 texs/*.dvi
+texs/*.blg
+texs/*.bbl
 tesx.tokenized.c.astdump
 clang_fromnewsource/
+models/
+typetes.py
 

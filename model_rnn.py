@@ -28,6 +28,7 @@ class Seq2seq(chainer.Chain):
 		self.v_eos_src = v_eos_src
 		self.v_eos_dst = v_eos_dst
 		self.n_maxlen = n_maxlen
+		self.n_target_vocab = n_target_vocab
 
 	def forward(self, xs, ys):
 		#print(xs,ys)
@@ -85,6 +86,47 @@ class Seq2seq(chainer.Chain):
 				ys = self.xp.argmax(wy.array, axis=1).astype(np.int32)
 				result.append(ys)
 
+
+		beam_with = 3
+		with chainer.no_backprop_mode(), chainer.using_config('train', False):
+			xs = [x[::-1] for x in xs]
+			exs = sequence_embed(self.embed_x, xs)
+			hx, cx, _ = self.encoder(None, None, exs)
+			#print(hx.shape,cx.shape,(1,xs_states[0].shape))
+			#sprint(xs_states)
+			hx = F.transpose(hx,axes=(1,0,2))
+			cx = F.transpose(cx,axes=(1,0,2))
+			
+			ivs = [self.embed_y(self.xp.full(1,i,np.int32))[0] for i in range(self.n_target_vocab)]
+			v = ivs[EOS_DST]
+			
+			result = []
+			
+			for i in range(len(xs)):
+				nhx,ncx = hx[i],cx[i]
+				ncx = F.reshape(ncx,(ncx.shape[0],1,ncx.shape[1]))
+				nhx = F.reshape(nhx,(nhx.shape[0],1,nhx.shape[1]))
+				beam_data = [(0.0,([],v,nhx,ncx))]
+				
+				for j in range(self.n_maxlen):
+					to_beam = []
+					for r,(kd,v,nhx,ncx) in beam_data:
+						tv = F.reshape(v,(1,self.n_units))
+						thx,tcx,ys = self.decoder(nhx,ncx,[tv])
+						
+						wy = self.W(ys[0]).data[0]
+						#print(wy.shape,wy)
+						wy = F.reshape(F.log_softmax(F.reshape(wy,(1,self.n_target_vocab)),axis=1),(self.n_target_vocab,)).data
+						#print(wy.shape)
+						to_beam += [(r+nr,(kd + [i],ivs[i],thx,tcx)) for i,nr in enumerate(wy)]
+					
+					#print(to_beam[0][0])
+					#print(list(map(lambda a: a[0],to_beam[:10])))
+					beam_data = sorted(to_beam)[::-1][:beam_with]
+					#print(list(map(lambda a: a[0],beam_data[:10])))
+					
+				result.append(beam_data[0][1][0])			
+				
 		# Using `xp.concatenate(...)` instead of `xp.stack(result)` here to
 		# support NumPy 1.9.
 		result = self.xp.concatenate([self.xp.expand_dims(x, 0) for x in result]).T

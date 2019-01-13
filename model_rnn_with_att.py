@@ -167,7 +167,7 @@ class Seq2seq_with_Att(chainer.Chain):
 				ncx = F.reshape(ncx,(ncx.shape[0],1,ncx.shape[1]))
 				nhx = F.reshape(nhx,(nhx.shape[0],1,nhx.shape[1]))
 				self.att.init_hxs(hxs)
-				beam_data = [(1.0,([],v,nhx,ncx))]
+				beam_data = [(0.0,([],v,nhx,ncx))]
 				
 				for j in range(self.n_maxlen):
 					to_beam = []
@@ -180,6 +180,7 @@ class Seq2seq_with_Att(chainer.Chain):
 						thx,tcx,ys = self.decoder(nhx,ncx,[tv])
 						
 						wy = self.W(ys[0]).data[0]
+						wy = F.reshape(F.log_softmax(F.reshape(wy,(1,self.n_target_vocab)),axis=1),(self.n_target_vocab,)).data
 						#print(wy.shape)
 						to_beam += [(r+nr,(kd + [i],ivs[i],thx,tcx)) for i,nr in enumerate(wy)]
 					
@@ -187,7 +188,8 @@ class Seq2seq_with_Att(chainer.Chain):
 					#print(list(map(lambda a: a[0],to_beam)))
 					beam_data = sorted(to_beam)[::-1][:beam_with]
 					#print(list(map(lambda a: a[0],beam_data)))
-					
+				
+				self.att.reset()
 				result.append(beam_data[0][1][0])			
 		
 		# Remove EOS taggs
