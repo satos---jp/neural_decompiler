@@ -87,15 +87,27 @@ This is much easier compare to analysing raw binary.
 But sometimes the decompiler generate  unstructured code, which calls for some effort to understand the behavior of the program. 
 This is due to the flexibility of the high level language. If the decompiler chooses a human-friendly representation of the language as the result of decompiling, we can analyze malware with less effort. 
 
-In this paper, we apply a statistical machine translation tequnique for a decompiler to generate human-friendly pseudocode. 
-This idea was already mentioned by Katz et al. [1], in which they use end-to-end machine translation with Recurrent Neural Networks.
+In this paper, we apply neural networks for a decompiler to generate human-friendly pseudocode. 
+This idea is oridinated from \cite{Motoneta}, in which they use Recurrent Neural Networks.
 
-\section{Previous Studies}
-\subsection{Decompilation techniques}
+(TODO)このあとに今回やる更に具体的な内容とその成果についてが入る。
+
+\section{Related Works}
+\subsection{Decompilation with Machine learning}
+Perfect decompilation is naturally impossible. So there are many machine learning applications for decompilation.
+
+The idea of applying LSTM to decompilation is originated from \cite{Motoneta}. 
+
+
+In \cite{genetic_decompiler}, they applied genetic programming to decompilation.
+
+(TODO)もっとちゃんと説明する(手法をどこまで書くか)
 
 % Compiler and Optimization Level Estimation for Improving Anti-malware Technologies
 
 % 
+
+
 
 \subsection{Improvement of decompilation results}
 In this paper, we don't try to recover the function name and variable name. 
@@ -104,20 +116,24 @@ For example, assume there is a variable X which seems to have a C struct type an
 And there are two functions F and G which operate with X. 
 The function F recieves X and other value V, assigns V to the memory indicated by P, adds 8 to P and increments Q. 
 The function G recieves X, subs 8 from P and decrements Q, then returns the value indicated by P.
-In the situation, analyst can estimate X represents a stuck structure, and the function F is for push function, G is for pop function.
+In the situation, analyst can estimate X has a name related to {\sl stuck}, and the function F has a name related to {\sl push}, G has a name related to {\sl pop}.
 
-\cite{name_recover_from_decompile_result} is the paper for tuckling this task.
-
-
+\cite{name_recover_from_decompile_result} is the paper for tuckling this task. 
+In this paper, they try to estimate the name of a variable whcih appears in the decompilation result of a compiled C program.
 
 This kind of name estimation also appears in the context of deobfsucation.
 Deobfsucation is a reverse process of obfsucation.
 Obfsucation is a technique to modify the program source code so that the code becomes hard to understand for humans. 
 Obfsucation is used for hiding the behaviour of a program whose source code have to be distributed.
-For example, 
+For example, in the web application, the javascript code of the program should be distributed in order to be executed on client web browsers.
+To protect the program from cracking, the javascript code are sometimes minfified. All coments, newlines, indents are removed and the 
+variable names are substituted to automaticaly generated meaningless name.
 
+\cite{JSNaughty} applys statistical machine translation for this task. 
 
-\subsection{Deep learning for programming task}
+\subsection{Neural networks for program synthesis}
+
+There are so many applications of neural networks for program synthesis. They are summurized in \cite{deep_programming_matome}.
 
 
 \chapter{Problem Settings and Methots}
@@ -126,9 +142,9 @@ For example,
 
 % 573 words.
 
-A compiler is a program which translates source code written in language X into other language Y. 
+A compiler is a program which compiles source code written in language X to other language Y. 
 Usually, X is high-level language and Y is relatively low-level language. 
-For example, clang compiler translates C language into x64 assembly language, javac compiler translates Java to Java virtual machine code.
+For example, clang compiler translates C language to x64 assembly language, javac compiler translates Java to Java virtual machine code.
 
 A decompiler is a program which aims to reverse the process of a compiler, retrive a source code of the high-level language X from the source code of the low-level language Y. 
 This reversing process is usually insufficient or impossible.
@@ -143,6 +159,8 @@ Their output psudecodes are sometimes wrong or hard to understand.
 
 % https://github.com/torvalds/linux/blob/70c25259537c073584eb906865307687275b527f/lib/rbtree.c#L528
 
+
+(TODO)表がはみ出しているのでどうにかする。
 
 \begin{figure}
 	\begin{tabular}{cc}
@@ -188,11 +206,12 @@ So we have to model the structure of compilation process somehow.
 We modeled the structure by the LSTM, which is commonly used in resent SMT techniques.
 
 \section{LSTM}
-To generate $ \argmax_{sx} p(sx|sy)$, we decomposit $ p(sx|sy) = p([sx_1, \dots, sx_n] |sy) $ to $ p(sx_1|sy,[]) \dots p(sx_n|sy,[sx_1,\dots,sx_{n-1}]) $,
+To generate $ \argmax_{sx} p(sx|sy)$, we decomposit $ p(sx|sy) = p([sx_1, \dots, sx_n] |sy) $ to $ \prod_{k=1}^{n} p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $,
 where $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ represents the probability that the token $ sx_k $ follows to the sequence $ [sx_1,\dots,sx_{k-1}] $ 
-when the input sequence is $ sy $. We try to estimate the probability $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ by LSTM.
-LSTM is 
+when the input sequence is $ sy $. We try to estimate the probability 
+$ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ by LSTM.
 
+(TODO)LSTMの説明、その後Attentionについて説明、さらにその後seq2treeについて説明する。
 
 \chapter{Experiments}
 
@@ -202,8 +221,6 @@ First, we collected source codes by crawling \cite[GitHub]{github}, cloning abou
 and recursevily searched each folders to enumerate C language source code.
 From each source code, we generated pairs of C source code fragment and x64 assembly code corresponds to the C fragment.
 Some sample flagments are shown in figure~\ref{fig:pairsofflagments}. 
-
-% Here the reason for fragments?
 
 \begin{figure}
 	\begin{tabular}{cc}
@@ -230,6 +247,8 @@ The C flagment and assembly code pairs are preprocessed for the training and tes
 
 
 \section{Data Preprocessing}
+
+% 244 words
 In order to apply LSTM, input and output for the LSTM must be the sequence of tokens. 
 So we have to preprocess the assembly data and C flagments to the token sequences by somehow.
 
@@ -256,15 +275,15 @@ C source code was tokenized to the sequence and preprocessed with following modi
 \item All string literals were replaced to the {\sl \_\_STRING\_\_} symbol.
 \end{itemize}
 
-
+(TODO)木状にする方法について述べる。
 
 
 \section{Model Configuration}
-The training model was implemented with Chainer 6.0.0b1.
-The 
-
+The training model was implemented with Chainer.
+(TODO)レイヤ数、ロスについてのべる。
 
 \chapter{Results}
+(TODO)seq2seq、アテンション付きseq2seq、seq2treeとバイナリそのまま/逆アセンブル後 の6パターンのデータを出す。
 \chapter{Discussion}
 \chapter{Conclusion}
 

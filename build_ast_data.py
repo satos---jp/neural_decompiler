@@ -55,9 +55,13 @@ def convert(path):
 	
 	if d == 0:
 		d = subprocess.call('clang -Xclang -dump-tokens -fsyntax-only %s.pp.c > /dev/null 2> %s.tokenized' % (fn,fn),shell=True)
-	
-		with open('%s.tokenized' % fn,"r") as fp:
-			s = fp.read()
+		
+		try:
+			with open('%s.tokenized' % fn,"r") as fp:
+				s = fp.read()
+		except UnicodeDecodeError:
+			print('mousiran',fn)
+			return
 		
 		ts = ""
 		bc = ""
@@ -100,7 +104,24 @@ def convert(path):
 			return
 	
 	return
-		
+	
+	
+	"""
+	satos@ispc2016:~/sotsuron/neural_decompiler/build_ast$ ls *.pp.c | wc
+  	18109   18109  833014
+	satos@ispc2016:~/sotsuron/neural_decompiler/build_ast$ ls *.tokenized | wc
+		16829   16829  858279
+	satos@ispc2016:~/sotsuron/neural_decompiler/build_ast$ ls *.tokenized.bef.c | wc
+		16845   16845  960165
+	satos@ispc2016:~/sotsuron/neural_decompiler/build_ast$ ls *.tokenized.bef.c.astdump | wc
+		12728   12728  827320
+	satos@ispc2016:~/sotsuron/neural_decompiler/build_ast$ ls *.tokenized.bef.o | wc
+		12656   12656  721392
+	satos@ispc2016:~/sotsuron/neural_decompiler/build_ast$ ls *.tokenized.c | wc
+		10327   10327  547331
+	satos@ispc2016:~/sotsuron/neural_decompiler/build_ast$ ls *.tokenized.o | wc
+		 9615    9615  509595
+	"""
 	
 
 	
