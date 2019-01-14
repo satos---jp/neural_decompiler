@@ -1,6 +1,10 @@
 from clang.cindex import CursorKind
 
 
+node_id_data = {
+
+}
+
 # liteeal can be expr
 # expr can be stmt
 nont_reduce = {
@@ -25,6 +29,7 @@ nont_reduce = {
 		CursorKind.STRING_LITERAL,
 		CursorKind.UNARY_OPERATOR,
 		CursorKind.UNEXPOSED_EXPR,
+		CursorKind.STRING_LITERAL,
 	],
 	'stmt': [
 		CursorKind.BREAK_STMT,
@@ -79,14 +84,14 @@ cfg = {
 	CursorKind.CONST_ATTR: None, # __attribute__((__const__))   skip. (or remove?)
 	CursorKind.CONTINUE_STMT: [],
 	CursorKind.CSTYLE_CAST_EXPR: ['type','expr'], #TODO(satos) ayasii  -> # retrive type from .type.get_canonical().spelling 
-	CursorKind.CXX_UNARY_EXPR: ['expr','unop'],  # only sizeof like things.
+	CursorKind.CXX_UNARY_EXPR: ['sizeof_kasou_var'],  # only sizeof like things. TODO(satos) restore from 8
 	CursorKind.DECL_REF_EXPR: ['name'],
 	CursorKind.DECL_STMT: [['decl','list']],
 	CursorKind.DEFAULT_STMT: ['stmt'],
 	CursorKind.DO_STMT: ['stmt','expr'],
 	CursorKind.ENUM_CONSTANT_DECL: ['name',['expr','option']],
 	CursorKind.ENUM_DECL: ['name',['decl','list']],
-	CursorKind.FIELD_DECL: ['type','name'], # [int hogehuga] in [struct{int hogehuga};]
+	CursorKind.FIELD_DECL: ['type','name',['expr','option']], # [int hogehuga] in [struct{int hogehuga};]
 	CursorKind.FLOATING_LITERAL: ['floatliteral'],
 	CursorKind.FOR_STMT: [['stmt','option'],['expr','option'],['expr','option'],'stmt'],
 	CursorKind.FUNCTION_DECL: ['type','name',['decl','list'],['stmt','option']], # TODO(satos) ayasii
@@ -120,6 +125,7 @@ cfg = {
 	CursorKind.VAR_DECL: ['type','name',['expr','option']], # ayasii
 	CursorKind.VISIBILITY_ATTR: None, # __attribute__((visibility("hidden"))). skip.
 	CursorKind.WHILE_STMT: ['expr','stmt'],
+	CursorKind.UNEXPOSED_DECL: None, #mousiran
 }
 
 """
@@ -143,9 +149,10 @@ def get_var_length(ty):
 def s2tree_with_parenthes(s):
 	r = ""
 	res = []
+	attrs = '__attribute__('
 	while len(s)>0:
 		if s[0]=='(':
-			if len(r)>0:
+			if len(r.strip())>0:
 				res.append(r)
 			r = ""
 			d,s = s2tree_with_parenthes(s[1:])
@@ -154,10 +161,14 @@ def s2tree_with_parenthes(s):
 			s = s[1:]
 		elif s[0]==')':
 			break
+		elif s[:len(attrs)]==attrs:
+			_,s = s2tree_with_parenthes(s[len(attrs):])
+			assert s[0]==')'
+			s = s[1:]
 		else:
 			r += s[0]
 			s = s[1:]
-	if len(r)>0:
+	if len(r.strip())>0:
 		res.append(r)
 	return res,s
 
@@ -168,9 +179,15 @@ def strize(x):
 		return '(' + ''.join(map(strize,x)) + ')'
 
 def type_embedding(ty,na):
-	print(ty,na)
+	#if 'restrict' in ty:
+	ty = ty.replace('restrict','__restrict')
+	#if 'struct __va_list_tag' in ty:
+		#print(ty,na)
+	#ty = ty.replace('struct __va_list_tag','__va_list_tag')
+		#print(ty)
+	#print(ty,na)
 	td,s = s2tree_with_parenthes(ty)
-	print(td,s)
+	#print(td,s)
 	assert len(s)==0
 	
 
@@ -194,24 +211,30 @@ def type_embedding(ty,na):
 
 
 def function_decl_func(cs):
-	print('cs',cs)
+	#print('cs',cs)
 	ty = cs[0]
 	na = cs[1]
 	cs = cs[2:]
 	td,s = s2tree_with_parenthes(ty)
-	print(td)
-	assert len(s)==0 and len(td)==2 and type(td[1]) is list
+	#print(s,td)
+	try:
+		assert len(s)==0 and len(td)==2 and type(td[1]) is list
+	except AssertionError:
+		raise Oteage
+		print('function_decl_func_fisrt_miss')
+		print(cs)
+		exit()
 	arg_types_len = 0
-	if len(td[1])!=0:
+	if len(td[1])!=0 and td[1][0] != 'void':
 		arg_types_len = 1
 		for d in td[1]:
 			if type(d) is list:
 				continue
 			else:
-				print(d,d.count(','))
+				#print(d,d.count(','))
 				arg_types_len += d.count(',')
 	
-	print(arg_types_len)
+	#print(arg_types_len)
 	arg_names = cs[:arg_types_len]
 	cs = cs[arg_types_len:]
 	assert len(cs)<=1
@@ -220,8 +243,14 @@ def function_decl_func(cs):
 	else:
 		body = cs[0]
 	
-	return td[0] + na + '(' + ','.join(map(lambda ab: type_embedding(*ab),arg_names)) + ')' + body
-
+	try:
+		return td[0] + na + '(' + ','.join(map(lambda ab: type_embedding(*ab),arg_names)) + ')' + body
+	except TypeError:
+		print('nazono type embedding no yatu')
+		raise AssertionError
+		print(cs)
+		print(arg_names)
+		exit()
 
 def stmts2str(cs):
 	res = ''
@@ -231,8 +260,13 @@ def stmts2str(cs):
 			res += d + '\n'
 		else:
 			res += d + ';\n'
-	return res 
+	return res
 
+def stmtize(s):
+	if s.strip()[-1] in [';','}']:
+		return s 
+	else:
+		return s + ';'
 
 
 class Oteage(Exception):
@@ -242,17 +276,18 @@ def for_check(cs):
 	s = cs[0].strip()
 	if ';' in s[:-1]:
 		raise Oteage
-	return 'for(' + cs[0] + ('' if s[-1]==';' else ';') + '{1};{2}){3}'.format(*cs)
+	return 'for(' + cs[0] + ('' if len(s)>0 and s[-1]==';' else ';') + '{1};{2}){3}'.format(*cs)
 
 cfg2str = {
 	CursorKind.ARRAY_SUBSCRIPT_EXPR: '{0}[{1}]',
 	CursorKind.BINARY_OPERATOR: '{0} {1} {2}', 
 	CursorKind.BREAK_STMT: 'break;\n',
 	CursorKind.CALL_EXPR: (lambda cs: cs[0] + '(' + ','.join(cs[1:]) + ')'),
-	CursorKind.CASE_STMT: 'case {0}:\n{1};',
+	CursorKind.CASE_STMT: (lambda cs: 'case ' + cs[0] + ':\n' + stmtize(cs[1])),
 	CursorKind.CHARACTER_LITERAL: ['literal'],
 	CursorKind.COMPOUND_ASSIGNMENT_OPERATOR: '{0} {1} {2}', 
-	CursorKind.COMPOUND_STMT: (lambda cs: ('%s' if len(cs)==1 else '{\n%s}\n') % stmts2str(cs)),	#(lambda cs: '{\n\t' + ''.join(cs).replace('\n','\n\t')[:-1] + '}\n'),
+	CursorKind.COMPOUND_STMT: (lambda cs: '{\n%s}\n' % stmts2str(cs)),	
+	#(lambda cs: ('%s' if len(cs)==1 else '{\n%s}\n') % stmts2str(cs)),	#(lambda cs: '{\n\t' + ''.join(cs).replace('\n','\n\t')[:-1] + '}\n'),
 	CursorKind.CONDITIONAL_OPERATOR: '{0} ? {1} : {2}', 
 	CursorKind.CONTINUE_STMT: 'continue;',
 	CursorKind.CSTYLE_CAST_EXPR: '({0}){1}', #TODO(satos) ayasii  -> # retrive type from .type.get_canonical().spelling 
@@ -268,7 +303,7 @@ cfg2str = {
 	CursorKind.FOR_STMT: for_check,
 	CursorKind.FUNCTION_DECL: function_decl_func,
 	CursorKind.GOTO_STMT: 'goto {0};',
-	CursorKind.IF_STMT: (lambda cs: 'if(' + cs[0] + ')' + cs[1] + ('' if len(cs)==2 else 'else ' + cs[2])),
+	CursorKind.IF_STMT: (lambda cs: 'if(' + cs[0] + ')' + stmtize(cs[1]) + ('' if len(cs)==2 else 'else ' + cs[2])),
 	CursorKind.IMAGINARY_LITERAL: None, # TODO(satos) imaginary number. currently omit. 
 	CursorKind.INDIRECT_GOTO_STMT: None, # TODO(satos) like goto *hoge. Is this valid in standard C?
 	CursorKind.INIT_LIST_EXPR: (lambda cs: '{' + ','.join(cs) + '}'), # TODO(satos) sometimes too long, restrict?
@@ -280,12 +315,11 @@ cfg2str = {
 	CursorKind.NULL_STMT: ';',
 	CursorKind.PAREN_EXPR: '({0})',
 	CursorKind.PARM_DECL: (lambda cs: cs), # f(int,int)    argument type. 
-	CursorKind.PURE_ATTR: None, # __attribute__((__pure__))    skip. (or remove?)
-	CursorKind.RETURN_STMT: 'return {0};',
+	CursorKind.RETURN_STMT: (lambda cs: 'return;' if len(cs)==0 else 'return ' + cs[0] + ';'),
 	CursorKind.STRING_LITERAL: ['literal'],
-	CursorKind.STRUCT_DECL: (lambda cs: 'struct ' + cs[0] + '{' + ''.join(cs[1:]) + '};\n'),
+	CursorKind.STRUCT_DECL: (lambda cs: (('struct ' + cs[0] + '{' + ''.join(cs[1:]) + '}' + ';\n') if len(cs)>1 else '')),
 	CursorKind.SWITCH_STMT: 'switch({0}){1}',
-	CursorKind.TRANSLATION_UNIT: (lambda cs: ''.join(cs)),
+	CursorKind.TRANSLATION_UNIT: stmts2str,
 	#CursorKind.TYPEDEF_DECL: (lambda cs: 'typedef ' + type_embedding(cs[0],cs[1])), #ayasii
 	#CursorKind.TYPE_REF: ['var'],
 	CursorKind.UNARY_OPERATOR: (lambda cs: ('{0} {1}' if cs[0][1] else '{1} {0}').format(cs[0][0],cs[1])), #what is difference with CursorKind.CXX_UNARY_EXPR
@@ -295,7 +329,7 @@ cfg2str = {
 	CursorKind.WHILE_STMT: 'while({0}){1}',
 }
 
-	
+
 	
 	
 	

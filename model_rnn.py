@@ -71,6 +71,7 @@ class Seq2seq(chainer.Chain):
 	def translate(self, xs):
 		EOS_DST = self.v_eos_dst
 		batch = len(xs)
+		"""
 		with chainer.no_backprop_mode(), chainer.using_config('train', False):
 			xs = [x[::-1] for x in xs]
 			exs = sequence_embed(self.embed_x, xs)
@@ -85,8 +86,20 @@ class Seq2seq(chainer.Chain):
 				wy = self.W(cys)
 				ys = self.xp.argmax(wy.array, axis=1).astype(np.int32)
 				result.append(ys)
-
-
+		# Using `xp.concatenate(...)` instead of `xp.stack(result)` here to
+		# support NumPy 1.9.
+		result = self.xp.concatenate([self.xp.expand_dims(x, 0) for x in result]).T
+		
+		# Remove EOS taggs
+		outs = []
+		for y in result:
+			inds = np.argwhere(y == EOS_DST)
+			if len(inds) > 0:
+				y = y[:inds[0, 0]]
+			outs.append(y)
+		return outs
+		"""
+		
 		beam_with = 3
 		with chainer.no_backprop_mode(), chainer.using_config('train', False):
 			xs = [x[::-1] for x in xs]
@@ -125,17 +138,13 @@ class Seq2seq(chainer.Chain):
 					beam_data = sorted(to_beam)[::-1][:beam_with]
 					#print(list(map(lambda a: a[0],beam_data[:10])))
 					
-				result.append(beam_data[0][1][0])			
-				
-		# Using `xp.concatenate(...)` instead of `xp.stack(result)` here to
-		# support NumPy 1.9.
-		result = self.xp.concatenate([self.xp.expand_dims(x, 0) for x in result]).T
-
+				result.append(beam_data[0][1][0])
 		# Remove EOS taggs
 		outs = []
 		for y in result:
-			inds = np.argwhere(y == EOS_DST)
-			if len(inds) > 0:
-				y = y[:inds[0, 0]]
+			if EOS_DST in y:
+				y = y[:y.index(EOS_DST)]
+			#print(y)
 			outs.append(y)
 		return outs
+

@@ -32,4 +32,5 @@ tesx.tokenized.c.astdump
 clang_fromnewsource/
 models/
 typetes.py
+build_ast/
 
