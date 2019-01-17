@@ -1,9 +1,6 @@
 from clang.cindex import CursorKind
-
-
-node_id_data = {
-
-}
+import pycparser
+import c_ast
 
 # liteeal can be expr
 # expr can be stmt
@@ -60,11 +57,33 @@ nont_reduce = {
 		CursorKind.VAR_DECL,
 		CursorKind.FUNCTION_DECL,
 	],
+	
+	#from c_type_cfg
+	'type': [
+		pycparser.c_ast.ArrayDecl,
+		pycparser.c_ast.FuncDecl,
+		pycparser.c_ast.TypeDecl,
+		pycparser.c_ast.PtrDecl,
+	],
+	'paramlist': [
+		pycparser.c_ast.ParamList
+	],
+	'typename': [
+		pycparser.c_ast.Typename
+	],
+	'typedecltype': [
+		pycparser.c_ast.Struct,
+		pycparser.c_ast.Union,
+		pycparser.c_ast.IdentifierType,
+	],
 }
 
 
 reduced_type = dict(sum(map(lambda ds: list(map(lambda v: (v,ds[0]),ds[1])), nont_reduce.items()),[]))
 #def get_node_type
+
+for v in nont_reduce['expr']:
+	nont_reduce['stmt'].append(v)
 
 # None is for pass.
 cfg = {
@@ -112,7 +131,7 @@ cfg = {
 	CursorKind.PURE_ATTR: None, # __attribute__((__pure__))    skip. (or remove?)
 	CursorKind.RETURN_STMT: [['expr','option']],
 	CursorKind.STRING_LITERAL: ['stringliteral'],
-	CursorKind.STRUCT_DECL: ['name',['decl','list']],
+	CursorKind.STRUCT_DECL: ['type_name',['decl','list']],
 	CursorKind.SWITCH_STMT: ['expr','stmt'],
 	CursorKind.StmtExpr: None, # return ({int x = 3;4;});   GNU extension?, skip.
 	CursorKind.TRANSLATION_UNIT: [['decl','list']],
@@ -121,11 +140,24 @@ cfg = {
 	CursorKind.UNARY_OPERATOR: ['unop','expr'], #what is difference with CursorKind.CXX_UNARY_EXPR
 	CursorKind.UNEXPOSED_ATTR: None, # __attribute__((__nothrow__))   skip. (or remove?)
 	CursorKind.UNEXPOSED_EXPR: ['expr'], # Implicit cast (len==1) or initialize struct like .d=3 (len==2) or other insane expressions
-	CursorKind.UNION_DECL: ['name',['decl','list']],
+	CursorKind.UNION_DECL: ['type_name',['decl','list']],
 	CursorKind.VAR_DECL: ['type','name',['expr','option']], # ayasii
 	CursorKind.VISIBILITY_ATTR: None, # __attribute__((visibility("hidden"))). skip.
 	CursorKind.WHILE_STMT: ['expr','stmt'],
 	CursorKind.UNEXPOSED_DECL: None, #mousiran
+
+	# from c_type_cfg
+	pycparser.c_ast.Typename: [['string','list'],'type'],
+	
+	pycparser.c_ast.ArrayDecl: [['dim_expr','option'],'type'],
+	pycparser.c_ast.TypeDecl: [['string','list'],'typedecltype'],
+	pycparser.c_ast.PtrDecl: [['string','list'],'type'],
+	pycparser.c_ast.FuncDecl: [['paramlist','option'],'type'],
+	pycparser.c_ast.ParamList: [['typename','list']],
+	
+	pycparser.c_ast.Struct: ['structname'],
+	pycparser.c_ast.Union: ['unionname'],
+	pycparser.c_ast.IdentifierType: [['string','list']],
 }
 
 """
@@ -276,7 +308,7 @@ def for_check(cs):
 	s = cs[0].strip()
 	if ';' in s[:-1]:
 		raise Oteage
-	return 'for(' + cs[0] + ('' if len(s)>0 and s[-1]==';' else ';') + '{1};{2}){3}'.format(*cs)
+	return 'for(' + cs[0] + ('' if len(s)>0 and s[-1]==';' else ';') + '{1};{2})'.format(*cs) + stmtize(cs[3])
 
 cfg2str = {
 	CursorKind.ARRAY_SUBSCRIPT_EXPR: '{0}[{1}]',
@@ -284,7 +316,7 @@ cfg2str = {
 	CursorKind.BREAK_STMT: 'break;\n',
 	CursorKind.CALL_EXPR: (lambda cs: cs[0] + '(' + ','.join(cs[1:]) + ')'),
 	CursorKind.CASE_STMT: (lambda cs: 'case ' + cs[0] + ':\n' + stmtize(cs[1])),
-	CursorKind.CHARACTER_LITERAL: ['literal'],
+	CursorKind.CHARACTER_LITERAL: '{0}',
 	CursorKind.COMPOUND_ASSIGNMENT_OPERATOR: '{0} {1} {2}', 
 	CursorKind.COMPOUND_STMT: (lambda cs: '{\n%s}\n' % stmts2str(cs)),	
 	#(lambda cs: ('%s' if len(cs)==1 else '{\n%s}\n') % stmts2str(cs)),	#(lambda cs: '{\n\t' + ''.join(cs).replace('\n','\n\t')[:-1] + '}\n'),
@@ -294,31 +326,31 @@ cfg2str = {
 	CursorKind.CXX_UNARY_EXPR: '8', #TODO(satos) maybe later ['unary_op','expr_option'],  # only sizeof like things.
 	CursorKind.DECL_REF_EXPR: '{0}',
 	CursorKind.DECL_STMT: (lambda cs: stmts2str(cs)),
-	CursorKind.DEFAULT_STMT: 'default:\n{0};\n',
+	CursorKind.DEFAULT_STMT: (lambda cs: 'default:\n' + stmtize(cs[0])),
 	CursorKind.DO_STMT: 'do{{{0}}}while({1})',
 	CursorKind.ENUM_CONSTANT_DECL: (lambda cs: cs[0] + ('' if len(cs)==1 else ' = ' + cs[1])),  # akirameru
 	CursorKind.ENUM_DECL: (lambda cs: 'enum ' + cs[0] + '{' + ','.join(cs[1:]) + '};'),             # akirameru
 	CursorKind.FIELD_DECL: (lambda cs: type_embedding(cs[0],cs[1]) + ';\n'), # [int hogehuga] in [struct{int hogehuga};]
-	CursorKind.FLOATING_LITERAL: ['literal'],
+	CursorKind.FLOATING_LITERAL: '{0}',
 	CursorKind.FOR_STMT: for_check,
 	CursorKind.FUNCTION_DECL: function_decl_func,
 	CursorKind.GOTO_STMT: 'goto {0};',
-	CursorKind.IF_STMT: (lambda cs: 'if(' + cs[0] + ')' + stmtize(cs[1]) + ('' if len(cs)==2 else 'else ' + cs[2])),
+	CursorKind.IF_STMT: (lambda cs: 'if(' + cs[0] + ')' + stmtize(cs[1]) + ('' if len(cs)==2 else 'else ' + stmtize(cs[2]))),
 	CursorKind.IMAGINARY_LITERAL: None, # TODO(satos) imaginary number. currently omit. 
 	CursorKind.INDIRECT_GOTO_STMT: None, # TODO(satos) like goto *hoge. Is this valid in standard C?
 	CursorKind.INIT_LIST_EXPR: (lambda cs: '{' + ','.join(cs) + '}'), # TODO(satos) sometimes too long, restrict?
-	CursorKind.INTEGER_LITERAL: ['literal'],
+	CursorKind.INTEGER_LITERAL: '{0}',
 	CursorKind.LABEL_REF: '{0}',
-	CursorKind.LABEL_STMT: '{0}:\n{1}',
-	CursorKind.MEMBER_REF: ['var'], # x in {.x=3};
+	CursorKind.LABEL_STMT: (lambda cs: cs[0] + ':\n' + stmtize(cs[1])),
+	#CursorKind.MEMBER_REF: ['var'], # x in {.x=3};
 	CursorKind.MEMBER_REF_EXPR: '{0}{1}{2}',
 	CursorKind.NULL_STMT: ';',
 	CursorKind.PAREN_EXPR: '({0})',
 	CursorKind.PARM_DECL: (lambda cs: cs), # f(int,int)    argument type. 
 	CursorKind.RETURN_STMT: (lambda cs: 'return;' if len(cs)==0 else 'return ' + cs[0] + ';'),
-	CursorKind.STRING_LITERAL: ['literal'],
+	CursorKind.STRING_LITERAL: '{0}',
 	CursorKind.STRUCT_DECL: (lambda cs: (('struct ' + cs[0] + '{' + ''.join(cs[1:]) + '}' + ';\n') if len(cs)>1 else '')),
-	CursorKind.SWITCH_STMT: 'switch({0}){1}',
+	CursorKind.SWITCH_STMT: (lambda cs: 'switch(' + cs[0] + ')' + stmtize(cs[1])),
 	CursorKind.TRANSLATION_UNIT: stmts2str,
 	#CursorKind.TYPEDEF_DECL: (lambda cs: 'typedef ' + type_embedding(cs[0],cs[1])), #ayasii
 	#CursorKind.TYPE_REF: ['var'],
@@ -326,14 +358,136 @@ cfg2str = {
 	CursorKind.UNEXPOSED_EXPR: (lambda cs: cs[0] if len(cs)==1 else 'INVALID'), # Implicit cast (len==1) or initialize struct like .d=3 (len==2) or other insane expressions
 	CursorKind.UNION_DECL: (lambda cs: 'union ' + cs[0] + '{' + ''.join(cs[1:]) + '};\n'),
 	CursorKind.VAR_DECL: (lambda cs: type_embedding(cs[0],cs[1]) + ('=' + cs[2] if len(cs)==3 else '') + ';'),
-	CursorKind.WHILE_STMT: 'while({0}){1}',
+	CursorKind.WHILE_STMT: (lambda cs: 'while(' + cs[0] + ')' + stmtize(cs[1])),
 }
 
 
+import c_type_cfg
+
+leaftypes = [
+	'binop', 'stringliteral', 'integerliteral', 'unop', 'label', 'charliteral', 'casop', 'memberrefop', 'floatliteral'
+]
+
+shortleavs = {
+	'binop': ['=', '&', '==', '>', '||', '|', '-', '+', '/', '<<', '>>', '!=', '>=', '<=', '&&', ',', '%', '^', '<', '*'], 
+	'unop': [
+		('--', False), ('~', True), ('++', False), ('++', True), ('--', True), 
+		('-', True), ('+', True), ('&', True), ('!', True), ('__extension__', True), 
+		('__real__', True), ('__imag__', True), ('*', True)
+	],
+	'casop': ['*=', '|=', '&=', '>>=', '<<=', '-=', '^=', '%=', '/=', '+='], 
+	'memberrefop': ['.', '->'], 
+	'NULL': [''],
+}
+
+alltypes = (
+	leaftypes + list(nont_reduce.keys()) + 
+	[['expr','option'],['stmt','option'],['decl','list'],['expr','list'],['stmt','list']] + 
+	list(cfg2str.keys()) + list(c_type_cfg.cfg.keys())
+)
+
+alphaleavs = {
+	'name': [],
+	'structname': [],
+	'unionname': [],
+	'label': [],
+}
+
+def init_idxnize():
+	for k in alphaleavs.keys():
+		alphaleavs[k] = []
+
+def leafdata2idx(ty,v):
+	if ty in shortleavs.keys():
+		return shortleafs[ty].index(v)
+	elif ty in alphaleavs.keys():
+		if v in alphaleavs[ty]:
+			alphaleavs[ty].index(v)
+		else:
+			ls = len(alphaleavs[ty])
+			alphaleavs[ty].append(v)
+			return ls
+	elif ty in ['stringliteral','floatliteral','charliteral']:
+		return 0
+	elif ty == 'integerliteral':
+		kn = 256
+		assert v>=0
+		if v<kn:
+			return v
+		else:
+			return -1
+	else:
+		assert False
+
+
+
+
+def nodetype2idx(ty):
+	return alltypes.index(ty)
+
+def idx2nodetype(idx):
+	return alltypes[idx]
+
+
+from pycparser import c_parser,c_ast,c_generator
+
+
+parser = c_parser.CParser()
+generator = c_generator.CGenerator()
+
+def data2tystr(data):
 	
+	def treenize(ast):
+		ty = ast.kind
+		args = {}
+		for k in ty.__init__.__code__.co_varnames:
+			if k=='self':
+				continue
+			args[k] = None
+		
+		cts = c_type_cfg.cfg[k]
+		assert len(ast.cs)==len(cts)
+		for (_,kna),v in zip(cts,ast.cs):
+			args[kna] = treenize(v)
+		
+		return ty(*args)
 	
+	ast = c_ast.nullast().load_astdata(data)	
+	tree = treenize(ast)
+	return generator.visit(tree)
+
+typedata_cache = []
+def tystr2data(ty):
+	cache = False
+	if len(ty)<7: #'int [0]'
+		cache = True
 	
+	if ty in typedata_cache.keys():
+		return typedata_cache[ty]
 	
+	try:
+		ki = parser.parse('int _ = (' + ty + ')0;', filename='<stdin>')
+	except plyparser.ParseError:
+		raise Oteage
+	
+	ki = ki.ext[0].init.to_type
+	
+	def rec_conv(node,nast):
+		cs = c_type_cfg.cfg[type(node)]
+		nast.kind = type(node)
+		tcs = []
+		for _,k in cs:
+			tcs.append(rec_conv(c_ast.nullast(),node.__getattribute__(k)))
+		nast.children = tcs
+	
+	ast = rec_conv(ki,c_ast.nullast())
+	ast.treenize()
+	res = ast.astdata
+	if cache:
+		typedata_cache[ty] = res
+	return res
+
+
 
 
 

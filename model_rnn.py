@@ -19,7 +19,7 @@ class Seq2seq(chainer.Chain):
 		with self.init_scope():
 			self.embed_x = L.EmbedID(n_source_vocab, n_units)
 			self.embed_y = L.EmbedID(n_target_vocab, n_units)
-			self.encoder = L.NStepLSTM(n_layers, n_units, n_units, 0.1)
+			self.encoder = L.NStepBiLSTM(n_layers, n_units, n_units, 0.1)
 			self.decoder = L.NStepLSTM(n_layers, n_units, n_units, 0.1)
 			self.W = L.Linear(n_units, n_target_vocab)
 
@@ -33,7 +33,7 @@ class Seq2seq(chainer.Chain):
 	def forward(self, xs, ys):
 		#print(xs,ys)
 		#exit()
-		xs = [x[::-1] for x in xs]
+		#xs = [x[::-1] for x in xs]
 		
 		eos_dst = self.xp.array([self.v_eos_dst], np.int32)
 		ys_in = [F.concat([eos_dst, y], axis=0) for y in ys]

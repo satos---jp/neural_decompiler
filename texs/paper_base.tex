@@ -6,11 +6,7 @@
 \etitle{Neural Network based Decompiler for Machine Coding}
 \jtitle{ニューラルネットを用いた機械語のための逆コンパイラ}
 
-\eauthor{Sota Sato}
-\jauthor{佐藤聡太}
-\esupervisor{Masashi Sugiyama}
-\jsupervisor{杉山将}
-\supervisortitle{Professor} % Professor, etc.
+__NAMES__
 
 \date{December 11, 2018}
 %-------------------
@@ -35,11 +31,11 @@
 
 
 \lstset{%
-  basicstyle={\tiny},%
-  commentstyle={\tiny\itshape},%
-  keywordstyle={\tiny\bfseries},%
+  basicstyle={\small},%
+  commentstyle={\small\itshape},%
+  keywordstyle={\small\bfseries},%
   % style={myCustomMatlabStyle},
-  stringstyle={\tiny\ttfamily},
+  stringstyle={\small\ttfamily},
   frame={tb},
   breaklines=true,
   columns=[l]{fullflexible},%
@@ -49,7 +45,8 @@
   numberstyle={\scriptsize},%
   stepnumber=1,
   numbersep=1zw,%
-  lineskip=-0.5ex%
+  lineskip=-0.5ex,%
+  captionpos=b
 }
 
 
@@ -73,209 +70,258 @@ In experiments, we use source codes collected from open source projects and thei
 \maketitle
 
 \chapter{Introduction}
-% For dinamic analysis, malware is executed in the sandbox and the behaviour is examined with the changes ocuuring in the sandbox. 
+% For dinamic analysis, malware is executed in the sandbox and the behavior is examined with the changes ocuuring in the sandbox. 
 % Usually, there are two malware analysis approach, the dinamic analysis and the static analysis.
-% In the static analysys, the behaviour of the malware is analysed by 
+% In the static analysys, the behavior of the malware is analyzed by 
 
 These days, the amount of malware has been increasing rapidly.
-So the development of malware analysis tools, such as decompilers, has been becoming important.
-A decompiler is a tool for analysing the behavior of malwares. 
-This tool generates C-like pseudocode which represents the behaviour of the malware, and analyst can infer the behavior of the malware with the pseudocode.
-This is much easier compare to analysing raw binary. 
+So the importance to develop malware analysis tools has been rising.
 
+One of these tools is a decompiler, which is a tool for analyzing the behavior of malwares. 
+This tool generates C-like pseudocode which represents the behavior of the malware, and analyst can infer the behavior of the malware from the pseudocode.
+This is much easier compare to analyzing raw binary. 
 
-But sometimes the decompiler generate  unstructured code, which calls for some effort to understand the behavior of the program. 
-This is due to the flexibility of the high level language. If the decompiler chooses a human-friendly representation of the language as the result of decompiling, we can analyze malware with less effort. 
+However, sometimes a decompiler generate unstructured code, which requires users to make an effort to understand the behavior of the program. 
+This is due to flexibility of the high level language. If the decompiler chooses a human-friendly representation of the language as the result of decompiling, we can analyze malware with less effort. 
 
-In this paper, we apply neural networks for a decompiler to generate human-friendly pseudocode. 
-This idea is oridinated from \cite{Motoneta}, in which they use Recurrent Neural Networks.
+In this paper, we apply neural networks to a decompiler to generate human-friendly pseudocode. 
+This idea is originated from \cite{Motoneta}, in which they use Recurrent Neural Networks.
 
 (TODO)このあとに今回やる更に具体的な内容とその成果についてが入る。
 
 \section{Related Works}
-\subsection{Decompilation with Machine learning}
-Perfect decompilation is naturally impossible. So there are many machine learning applications for decompilation.
+\subsection{Decompilation with Machine Learning}
+Because perfect decompilation is naturally impossible, there are many machine learning applications for decompilation.
 
-The idea of applying LSTM to decompilation is originated from \cite{Motoneta}. 
+% The idea of applying LSTM to decompilation is originated from \cite{Motoneta}. 
 
 
 In \cite{genetic_decompiler}, they applied genetic programming to decompilation.
 
-(TODO)もっとちゃんと説明する(手法をどこまで書くか)
+(TODO)更にいろいろ説明する(手法をどこまで書くか)
 
 % Compiler and Optimization Level Estimation for Improving Anti-malware Technologies
 
 % 
 
-
-
 \subsection{Improvement of decompilation results}
 In this paper, we don't try to recover the function name and variable name. 
-But for hand-decompilation, sometimes the name can be estimated by the functionality of the variable.
+However, for hand-decompilation, sometimes the name can be estimated by the functionality of the variable.
 For example, assume there is a variable X which seems to have a C struct type and has two fields P and Q.
 And there are two functions F and G which operate with X. 
-The function F recieves X and other value V, assigns V to the memory indicated by P, adds 8 to P and increments Q. 
-The function G recieves X, subs 8 from P and decrements Q, then returns the value indicated by P.
+The function F receives X and other value V, assigns V to the memory indicated by P, adds 8 to P and increments Q. 
+The function G receives X, subs 8 from P and decrements Q, then returns the value indicated by P.
 In the situation, analyst can estimate X has a name related to {\sl stuck}, and the function F has a name related to {\sl push}, G has a name related to {\sl pop}.
 
-\cite{name_recover_from_decompile_result} is the paper for tuckling this task. 
-In this paper, they try to estimate the name of a variable whcih appears in the decompilation result of a compiled C program.
+\cite{name_recover_from_decompile_result} is the paper for tackling this task. 
+In this paper, they try to estimate the name of a variable which appears in the decompilation result of a compiled C program.
 
-This kind of name estimation also appears in the context of deobfsucation.
-Deobfsucation is a reverse process of obfsucation.
-Obfsucation is a technique to modify the program source code so that the code becomes hard to understand for humans. 
-Obfsucation is used for hiding the behaviour of a program whose source code have to be distributed.
-For example, in the web application, the javascript code of the program should be distributed in order to be executed on client web browsers.
-To protect the program from cracking, the javascript code are sometimes minfified. All coments, newlines, indents are removed and the 
-variable names are substituted to automaticaly generated meaningless name.
+This kind of name estimation also appears in the context of deobfuscation.
+Deobfuscation is a reverse process of obfuscation.
+Obfuscation is a technique to modify the program source code so that the code becomes hard to understand for humans. 
+Obfuscation is used for hiding the behavior of a program whose source code have to be distributed.
+For example, on the web application, the JavaScript code of the program should be distributed in order to be executed on client web browsers.
+To protect the program from cracking, the JavaScript code are sometimes minified. All comments, newlines, indents are removed and the 
+variable names are substituted to automatically generated meaningless name.
 
-\cite{JSNaughty} applys statistical machine translation for this task. 
+\cite{JSNaughty} apply statistical machine translation for this task. 
 
-\subsection{Neural networks for program synthesis}
+\subsection{Neural Networks for Program Synthesis}
 
 There are so many applications of neural networks for program synthesis. They are summurized in \cite{deep_programming_matome}.
 
+(TODO)最低限Seq2Treeについては触れる。更にいろいろ。
 
 \chapter{Problem Settings and Methots}
 
 \section{Decompiler}
 
-% 573 words.
+% 320 words.
 
 A compiler is a program which compiles source code written in language X to other language Y. 
 Usually, X is high-level language and Y is relatively low-level language. 
 For example, clang compiler translates C language to x64 assembly language, javac compiler translates Java to Java virtual machine code.
 
-A decompiler is a program which aims to reverse the process of a compiler, retrive a source code of the high-level language X from the source code of the low-level language Y. 
+A decompiler is a program which aims to reverse the process of a compiler, retrieve a source code of the high-level language X from the source code of the low-level language Y. 
 This reversing process is usually insufficient or impossible.
-This is because many informaitions, such as variaible name or function name, are lost when compiling.
-Additionaly, the program structure descripted in the high level language are lost too. 
+This is because many informaition, such as variable name or function name, are lost when compiling.
+Additionally, the program structure described in the high level language are lost too. 
 For example, a simple {\sl for statement} can be represented by the combination of a {\sl while statement} and an {\sl if statement}, or the combination of {\sl if statement} and {\sl goto statement}. 
 So a decompiler can't distinguish their representation difference, despite in the real situation {\sl for statement} are often used and {\sl goto statement} are rarely. 
 
-Existing deterministic decompilers are made up with many steps similer to compilers. 
+Existing decompilers are made up with many steps similar to compilers. 
 They find patterns in binary data, convert them to more high-level structure, and chain them so that they finally generate high-level psudecode.
 Their output psudecodes are sometimes wrong or hard to understand.
 
 % https://github.com/torvalds/linux/blob/70c25259537c073584eb906865307687275b527f/lib/rbtree.c#L528
 
 
-(TODO)表がはみ出しているのでどうにかする。
+% (DONE)表がはみ出しているのでどうにかした。
 
 \begin{figure}
 	\begin{tabular}{cc}
-		\begin{minipage}[t]{0.5\hsize}
-			\lstinputlisting[]{rb_tree.c}
-		\end{minipage}
-		\begin{minipage}[t]{0.5\hsize}
-			\lstinputlisting[]{hopper.c}
+		\begin{minipage}[c]{0.5\hsize}
+			\lstinputlisting[title={sample C source code},breaklines=false]{bintree.c}
 		\end{minipage}
 		\\
 		\begin{minipage}[c]{0.5\hsize}
-			\lstinputlisting[]{snowman.c}
+			\lstinputlisting[title={result of the Hopper Decompiler}]{hopper.c}
 		\end{minipage}
 		\begin{minipage}[c]{0.5\hsize}
-			\lstinputlisting[]{handdecomp.c}
+			\lstinputlisting[title={result of the Snowman Decompiler}]{snowman.c}
 		\end{minipage}
 	\end{tabular}
-	\caption{ hogehugapiyo.}
+	\vspace*{-0.6cm}
+	\caption{ decompilation results of existing decompilers for C source code}
 	\label{fig:cw}
 \end{figure}
 
 
-Figure~\ref{fig:cw} shows the example decompilation result of the Hopper disassembler and the snowman decompiler and a hand decompilation for a C language code.
-The output of Hopper decompiler seems not so bad, but some essential statements are missing and there are some verbose variables.
-The output of snowman decompiler also seems broken. 
-The snowman decompiler finds some variablels are pointer of a structure, but fails to detect the range of the function, and generates many unneccesary casts.
-Idealy, the decompiler can find correct function ranges and structure of statements as a hand decompilation result, but the decompilers failed.
+Figure~\ref{fig:cw} shows the example decompilation results of the Hopper disassembler and the snowman decompiler 
+for a sample C language code.
+The Hopper decompiler fails to detect while statements, and the variable {\sl now} is incorrectly analyzed.
+The output of snowman seems rather correct, as type {\sl struct tree} is reconstructed to {\sl struct s0}, 
+and the {\sl if} statement and {\sl while} statement are correctly restored. 
+However, it fails to detect the function epilogue, and the {\sl free} function call is incorrectly analyzed.
+Ideally, the decompilers can find correct function ranges and structure of statements, but they failed.
 
-In this paper, we try to apply statistical approach, specifically SMT (statical machine translation) technique, for decompilation.
-The decompilation problem is folmulated as follows. 
-Given $sx$ as a source code of domain language X, compiler generates $sy$ as a code of target language Y with probability $p(sy|sx)$. 
-We assume the prior distribution $p(sx)$ as the human-generated souce code. 
-With that assumption, the provability of decompilation $p(sx|sy)$ is in proportion to $p(sy|sx)p(sx)$ according to the bayesian low. 
-The $\argmax_{sx} p(sx|sy)$ is considered as the best human-intelligible decompilation result for the low-level code $sy$,  
-so we try to estimate $ \argmax_{sx} p(sy|sx)p(sx)$ for decompilation result.
-And if the compiler is deterministic, there wolud be a function $f$ which represents the compiler and $p(f(sx)|sx) = 1$,
-then the objective becomes to $ \argmax_{sx,f(sx)=sy} p(sx)$.
 
-The distribution $p(sx)$ is approximated by collecting source code from open source projects.
-So if we had enough high-level source code data, we could choose the most popular high-level source code which generats given low-level code for the decompile result.
-But high-level source code data can't be comprehensive.
-So we have to model the structure of compilation process somehow.
-We modeled the structure by the LSTM, which is commonly used in resent SMT techniques.
+\section{Problem Settings}
 
-\section{LSTM}
-To generate $ \argmax_{sx} p(sx|sy)$, we decomposit $ p(sx|sy) = p([sx_1, \dots, sx_n] |sy) $ to $ \prod_{k=1}^{n} p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $,
+% 189
+In this paper, we try to apply statistical approach, specifically SMT (statistical machine translation) technique, for decompilation.
+The decompilation problem is formulated as follows. 
+
+Given $sx = [sx_1, \dots, sx_n] $ as a tokenized sequence of the source code of domain language X, compiler generates $sy$ as a code of target language Y with probability $p(sy|sx)$.
+Then, the best decompilation result for target source code $sy$ is $ \argmax_{sx} p(sx|sy)$. 
+To generate $ \argmax_{sx} p(sx|sy)$, we decomposit $ p(sx|sy) = p([sx_1, \dots, sx_n] |sy) = \prod_{k=1}^{n} p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $,
 where $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ represents the probability that the token $ sx_k $ follows to the sequence $ [sx_1,\dots,sx_{k-1}] $ 
-when the input sequence is $ sy $. We try to estimate the probability 
-$ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ by LSTM.
+when the input sequence is $ sy $. 
+We try to estimate the probability $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ by LSTM, which is described in the next section.
+With estimated $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $, we can generate approximated $ \argmax_{sx} p(sx|sy)$ sequentially from $sx_1$ to $sx_n$ by selecting token $ \argmax_{sx_{k}} p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ at each timing.
 
-(TODO)LSTMの説明、その後Attentionについて説明、さらにその後seq2treeについて説明する。
+% The LSTM is 
+% We assume the prior distribution $p(sx)$ as the human-generated source code. 
+% With that assumption, is in proportion to $p(sy|sx)p(sx)$ according to the Bayesian low, and 
+% the $\argmax_{sx} p(sx|sy)$ is considered as the best human-intelligible decompilation result for the low-level code $sy$.  
+% So we try to estimate $ \argmax_{sx} p(sy|sx)p(sx)$ for decompilation result.
+% And if the compiler is deterministic, there would be a function $f$ which represents the compiler and $p(f(sx)|sx) = 1$,
+% then the objective becomes to $ \argmax_{sx,f(sx)=sy} p(sx)$.
+
+% The distribution $p(sx)$ is approximated by collecting source code from open source projects.
+% So if we had enough high-level source code data, we could choose the most popular high-level source code which generates given low-level code for the decompile result.
+% However, high-level source code data can't be comprehensive.
+% So we have to model the structure of compilation process somehow.
+% We modeled the structure by the LSTM, which is commonly used in resent SMT techniques.
+
+\section{Modelings}
+
+% (TODO)LSTM,Seq2seqの説明、その後Attentionについて説明、さらにその後seq2treeについて説明する。
+\subsection{LSTM}
+LSTM (Long Short-Term Memory) is a unit of Recurrent Neural Network. 
+It is first introduced in \cite{first_LSTM}, for overcoming the vanishing gradient problem and exploding gradient problem.
+Roughly speaking, LSTM unit recieves two input vectors, 
+the one represents the internal state of the LSTM, and the other is the input for the LSTM unit, 
+and LSTM emits one output vectors, which represents the next internal state of the LSTM.
+
+\subsection{Seq2Seq}
+% This model is called seq2seq (sequence to seqence) model.
+
+LSTM unit is applied for SMT task in \cite{seq2seq}, as the essential unit of the seq2seq (sequence to sequence) model.
+SMT is the task which tries to translate one sentense $sx$ written in a language L into the sentense $sy$ written in another a language M.
+
+Seq2seq model is composed of two modules, the encoder netwrok and the decoder network.
+
+The purpose of the encoder network is to summerize the input sequence $sx$, whose length varies depending on the sequence, into one fixed length vector.
+This process is carried out as follows. 
+First, $sx$ is tokenized to sequence $sx_{1} \dots sx_{n}$, and each token $sx_{k}$ is embedded to vector representation $vx_{k}$. 
+Then, the initial LSTM internal state $enc_0$ is intialized randomely, 
+and for each vector $vx_{k}$ and internal state $s{k-1}$, next internal state $enc_{k}$ is calculated as $ LSTM_{enc}(enc_{k-1},vx_{k}) $.
+Finally, the last internal state $ enc_{n}$ is returned as the reduced representation of the input sequence $sx$.
+
+The purpose of the decoder network is to estimate the distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $. 
+
+The training process is carried out as follows. 
+First, $sy$ is tokenized and embedded to vector representation $vy_{1} \dots vy_{m}$ in the same way as $sx$.
+And from the start vector $y_begin$ and encoded input $ enc_{n} $, first internal state $ dec_{1}$ is calcuated as $ LSTM_{dec}(enc_{n},y_begin) $.
+Then, with for all vector $vy_{k}$, $dec_{k+1}$ is calculated as $ LSTM_{dec}(dec_{k},vy_{k}) $.
+Each decoder internal state $ dec_{k} $ is passed to the linear layer $ W_dec $ then softmaxed to a probability vector $ py_{k} $.
+The probability vector $ py_{k} $ is intended to represent the probability distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
+% (TODO)このへんで V_eosについて述べないといけない
+So the network is trained to reduce the difference between predicted distribution $ py_{k} $ and actual distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
+In the experiment, we choiced cross-entropy of $ py_{k} $ and $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ for loss function.
+
+The inference is obteining $ \argmax_{sy} p(sy|sx) = \argmax_{sy} \prod_{k=1}^n p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
+Calculating argmax directly is time consuming, so we have to approximate the argmax by calculating $sy = [sy_1, \dots sy_n]$ sequentially.
+First, $sy_1$ is calculated as $ \argmax_{sy_1} p(sy_1|sx,[]) $, where distribution $ p(sy_1|sx,[]) $ is approximated by 
+$ softmax(W_dec(dec_{1})) = softmax(W_dec(LSTM_{dec}(enc_{n},y_begin))) $. Then, the next 
+
+
 
 \chapter{Experiments}
 
 \section{Data Collection}
 % 219 words
 First, we collected source codes by crawling \cite[GitHub]{github}, cloning about 900 repositories with C language topic, 
-and recursevily searched each folders to enumerate C language source code.
+and recursively searched each folder to enumerate C language source code.
 From each source code, we generated pairs of C source code fragment and x64 assembly code corresponds to the C fragment.
-Some sample flagments are shown in figure~\ref{fig:pairsofflagments}. 
+Some sample fragments are shown in figure~\ref{fig:pairsoffragments}. 
 
 \begin{figure}
 	\begin{tabular}{cc}
+		(TODO)データ対の例を載せる
 	\end{tabular}
-	\caption{Sample data flagments}
-	\label{fig:pairsofflagments}
+	\caption{Sample data fragments}
+	\label{fig:pairsoffragments}
 \end{figure}
 
-The pairs were generated as follows. Let {\sl S0} be a original C source code.
+The pairs were generated as follows. Let {\sl S0} be an original C source code.
 \begin{enumerate}
 \item Remove all preprocessor, such as {\sl \#include}, in {\sl S0} to generate preprosessed C code {\sl S1}. 
-\item Tokenize {\sl S1} and rearrange them in {\sl S2} so that there is exactly one token for each lines. 
+\item Tokenize {\sl S1} and rearrange them in {\sl S2} so that there is exactly one token for each line. 
 \item 
 Compile {\sl S2} by gcc (GNU C compiler) with no optimization (-O0) and debug option to get assembly code {\sl S3}. 
-With debug option, {\sl S3} contains informations about the source code position which each assembly operations are originated from.
+With debug option, {\sl S3} contains information about the source code position which each assembly operations are originated from.
 \item Assemble {\sl S3} to object file {\sl S4} and disassemble {\sl S4} to get information eliminated assembly code {\sl S5}.
 \item 
 Parse {\sl S2} with clang to get AST (abstract syntax tree) of the source code. 
-And for each subtree of AST, we can get C flagment source code which corresponds to the subtree, 
-and we can get assembly code corresponds to the C flagment by employing {\sl S5} combine with {\sl S3}.
+And for each subtree of AST, we can get C fragment source code which corresponds to the subtree, 
+and we can get assembly code corresponds to the C fragment by employing {\sl S5} combine with {\sl S3}.
 \end{enumerate}
 
-The C flagment and assembly code pairs are preprocessed for the training and testing data.
+The C fragment and assembly code pairs are preprocessed for the training and testing data.
 
 
 \section{Data Preprocessing}
 
 % 244 words
 In order to apply LSTM, input and output for the LSTM must be the sequence of tokens. 
-So we have to preprocess the assembly data and C flagments to the token sequences by somehow.
+So we have to preprocess the assembly data and C fragments to the token sequences by somehow.
 
 The assemblies were preprocessed in two ways.
 First way is the raw binary integers. The assemblies are finally assembled to the sequence of the one byte integers, ranged from 0 to 255.
 So the one byte integer sequences can be directly used for input sequences.
-Second way is the tokenized sequence of assemby codes. 
-The disassemble opecodes and operands in {\sl S5} are splited to symbols, and concatnated the sequences to one sequence, then we modified followings.
+Second way is the tokenized sequence of assembly codes. 
+The disassembled opcodes and operands in {\sl S5} are split to symbols, and concatenated the sequences to one sequence, then we modified followings.
 \begin{itemize}
 \item For each end of the operations, the {\sl ENDLINE} symbol is added to indicate the end of operation.
 \item 
 The relative access of code address, such as {\sl call} or {\sl jump} operations, 
-are relabeled like alpha-conversion for position independentness of the code and for reducing the vocabulary size.
+are relabeled like $\alpha$-conversion for making code position independent and for reducing the vocabulary size.
 \item The big integer values are substituted. 
-In detail, the intager in the range from -255 to 256 are preverved as it is, and the other intengeres are substituted with the {\sl \_\_HEX\_\_} symbol.
+In detail, the integer in the range from -255 to 256 are preserved as it is, and the other integeres are substituted with the {\sl \_\_HEX\_\_} symbol.
 This also reduces the vocabulary size.
 \end{itemize}
 
 The C source codes were preprocessed like the second way of the assembly preprosess.
 C source code was tokenized to the sequence and preprocessed with following modifications.
 \begin{itemize}
-\item Function names and variable names were renamed like alpha-conversion.
+\item Function names and variable names were renamed like $\alpha$-conversion.
 \item Big integer values were substituted too. 
 \item All string literals were replaced to the {\sl \_\_STRING\_\_} symbol.
 \end{itemize}
 
-(TODO)木状にする方法について述べる。
+% (TODO)木状にする方法について述べる。
 
 
 \section{Model Configuration}

@@ -12,7 +12,6 @@ import binascii
 import csrc2ast
 import c_cfg
 
-
 tmp_cnt = 0
 def gen_tmp_name():
 	global tmp_cnt
@@ -30,7 +29,9 @@ def chain_functions(fs):
 
 devnull = open('/dev/null','w')
 with open('correspond_table_ast.txt','r') as fp:
-	corresp_table = fp.read()
+	corresp_table = fp.read()	
+
+
 
 def convert(path):
 	global devnull
@@ -46,6 +47,7 @@ def convert(path):
 	print(path)
 	d = subprocess.call('clang -E %s > /dev/null 2> /dev/null' % path,shell=True) 
 	
+	
 	if d == 0:
 		d = subprocess.call('clang -E %s | grep -v "#" | grep -v "^[[:space:]]*$" > %s.pp.c 2> /dev/null' % (path,fn),shell=True)
 	
@@ -53,6 +55,7 @@ def convert(path):
 		# too big.
 		d = 1
 	
+	# OSError: [Errno 28] No space left on device !!
 	if d == 0:
 		d = subprocess.call('clang -Xclang -dump-tokens -fsyntax-only %s.pp.c > /dev/null 2> %s.tokenized' % (fn,fn),shell=True)
 		
@@ -96,6 +99,10 @@ def convert(path):
 		except ValueError:
 			print('mousiran',fn)
 			return
+		except KeyError:
+			print('mousiran',fn)
+			return
+		
 		with open(tkcfn,'w') as fp:
 			fp.write(psrc)
 		
@@ -124,9 +131,19 @@ def convert(path):
 	"""
 	
 
+import tokenizer
+
+def convert_from_purified(fn):
+	global devnull
+	tsrc = '\n'.join(tokenizer.tokenize('%s.c' % fn))
+	tcfn = '%s.tokenized.c' % fn
+	with open(tcfn,'w') as fp:
+		fp.write(tsrc)
+		
+	#ast = csrc2ast.src2ast(tcfn)
 	
 	#print('tokenized',path)
-	tcfn = '%s.tokenized.c' % fn
+	atcfn = '%s.tokenized.aligned.c' % fn
 	sfn = '%s.s' % fn
 	ofn = '%s.o' % fn
 	
@@ -139,14 +156,11 @@ def convert(path):
 				(['objdump','-d','-M','intel','-w',ofn]              ,objdfp,devnull),
 			])
 	
-	parsedfp.close()
-	objdfp.close()
-	
 	if isok:
-		print('convert',path,'to',fn)
+		print('convert',fn)
 	else:
-		#pass
-		os.system('rm %s.*' % fn)
+		print('fail',fn)
+		#os.system('rm %s.*' % fn)
 
 
 
@@ -184,5 +198,52 @@ import os
 #os.system('rm build_ast/*')
 
 os.chdir('./build_ast')
-enumerate_src('../../corpus_folders/')
+#enumerate_src('../../corpus_folders/')
+
+def getsub(fn,s):
+	if fn[-len(s):]==s:
+		return fn[:-len(s)]
+	else:
+		return None
+
+fs = os.listdir('.')
+
+tos = list(filter(lambda x: x is not None,map(lambda fn: getsub(fn,'.tokenized.o'),fs)))
+
+os.chdir('../build_ast_save_csrc')
+for fn in tos:
+	convert_from_purified(fn)
+
+"""
+for fn in tos:
+	os.system('cp %s.tokenized.c ../build_ast_save_csrc/%s.c' % (fn,fn))
+"""
+
+
+"""
+print(len(tos))
+i = 0
+for fn in tos:
+	ts = '\n'.join(tokenize(fn + '.tokenized.c'))
+	astfn = fn + '.ast.c'
+	with open(astfn,'w') as fp:
+		fp.write(ts)
+	try:
+		csrc2ast.src2ast(astfn)
+	except (c_cfg.Oteage,AssertionError,IndexError,ValueError,KeyError) as e:
+		print('oteage',fn,e)
+		os.system('cp ' + fn + '.tokenized.c' + ' ../x')
+		os.system('rm ' + fn + '.*')
+		continue
+	i += 1
+	if i % 100==0:
+		print(i)
+"""
+
+"""
+import pickle
+with open('node_expand_data.pickle','wb') as fp:
+	pickle.dump(c_cfg.node_id_data,fp)
+"""
+
 

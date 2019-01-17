@@ -50,9 +50,9 @@ def s2tree(s):
 	return parse(0)
 
 import os
-def fn_to_clang_ast(fn):
-	os.system('clang -Xclang -ast-dump -fsyntax-only %s > %s.astdump 2>/dev/null' % (fn,fn))
-	with open(fn + '.astdump') as fp:
+def fn_to_clang_ast(pfn):
+	#os.system('clang -Xclang -ast-dump -fsyntax-only %s > %s.astdump 2>/dev/null' % (fn,fn))
+	with open(pfn) as fp:
 		parsed = fp.read()
 	return s2tree(parsed)
 
