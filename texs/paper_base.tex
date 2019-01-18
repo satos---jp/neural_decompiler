@@ -214,10 +214,11 @@ With estimated $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $, we can generate approximate
 % So we have to model the structure of compilation process somehow.
 % We modeled the structure by the LSTM, which is commonly used in resent SMT techniques.
 
-\section{Modelings}
+\section{Modeling}
 
 % (TODO)LSTM,Seq2seqの説明、その後Attentionについて説明、さらにその後seq2treeについて説明する。
 \subsection{LSTM}
+%72 words.
 LSTM (Long Short-Term Memory) is a unit of Recurrent Neural Network. 
 It is first introduced in \cite{first_LSTM}, for overcoming the vanishing gradient problem and exploding gradient problem.
 Roughly speaking, LSTM unit recieves two input vectors, 
@@ -227,8 +228,9 @@ and LSTM emits one output vectors, which represents the next internal state of t
 \subsection{Seq2Seq}
 % This model is called seq2seq (sequence to seqence) model.
 
+% 477 words.
 LSTM unit is applied for SMT task in \cite{seq2seq}, as the essential unit of the seq2seq (sequence to sequence) model.
-SMT is the task which tries to translate one sentense $sx$ written in a language L into the sentense $sy$ written in another a language M.
+SMT is the task which tries to translate one sentense $sx$ written in one language into the sentense $sy$ written in another language.
 
 Seq2seq model is composed of two modules, the encoder netwrok and the decoder network.
 
@@ -240,7 +242,6 @@ and for each vector $vx_{k}$ and internal state $s{k-1}$, next internal state $e
 Finally, the last internal state $ enc_{n}$ is returned as the reduced representation of the input sequence $sx$.
 
 The purpose of the decoder network is to estimate the distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $. 
-
 The training process is carried out as follows. 
 First, $sy$ is tokenized and embedded to vector representation $vy_{1} \dots vy_{m}$ in the same way as $sx$.
 And from the start vector $y_begin$ and encoded input $ enc_{n} $, first internal state $ dec_{1}$ is calcuated as $ LSTM_{dec}(enc_{n},y_begin) $.
@@ -252,10 +253,22 @@ So the network is trained to reduce the difference between predicted distributio
 In the experiment, we choiced cross-entropy of $ py_{k} $ and $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ for loss function.
 
 The inference is obteining $ \argmax_{sy} p(sy|sx) = \argmax_{sy} \prod_{k=1}^n p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
-Calculating argmax directly is time consuming, so we have to approximate the argmax by calculating $sy = [sy_1, \dots sy_n]$ sequentially.
+Calculating argmax directly is time consuming, so we have to approximate the argmax by calculating $sy = [sy_1, \dots sy_m]$ sequentially.
 First, $sy_1$ is calculated as $ \argmax_{sy_1} p(sy_1|sx,[]) $, where distribution $ p(sy_1|sx,[]) $ is approximated by 
-$ softmax(W_dec(dec_{1})) = softmax(W_dec(LSTM_{dec}(enc_{n},y_begin))) $. Then, the next 
+$ softmax(W_dec(dec_{1})) = softmax(W_dec(LSTM_{dec}(enc_{n},y_begin))) $. 
+Then, the next token $sy_2 = \argmax_{sy_1} p(sy_2|sx,[sy_2]) $ is calculated from $ dec_{1} $ and the vector embedding of $sy_1$, and so on.
+When the token $sy_{m+1}$ is the EOF token, generating process is stopped and the sequence $ [sy_1, \dots sy_m]$ is returned as the inference result.
 
+% (TODO) このへんで 図を入れる
+% (TODO) 理由/気持ち について述べたいですね。
+
+% (TODO) BiLSTMとmulti-layerについてさらっと
+
+\subsection{Attention}
+Attention is a extension module of Seq2Seq model to improve the quality of translation.
+
+
+\subsection{Seq2Tree}
 
 
 \chapter{Experiments}

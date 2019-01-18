@@ -18,7 +18,7 @@ Config.set_library_path("/usr/lib/llvm-7/lib")
 
 
 import tokenizer
-import c_ast
+import my_c_ast
 
 def ast2token_seq(data,terminal_ids):
 	ast = c_ast.AST([],isnull=True).load_astdata(data,terminal_ids)
@@ -64,17 +64,17 @@ def src2ast(fn,pfn):
 	index = Index.create()
 	ast = index.parse(fn).cursor
 	#sys.stdin.read()
-	res = c_ast.AST(ast,ast_hint,src)
-	res.treenize()
-	resrc = res.show()
-	resrc = 'struct __va_list_tag{    unsigned int gp_offset;    unsigned int fp_offset;    void *overflow_arg_area;    void *reg_save_area;};' + resrc
-	return resrc
+	res = my_c_ast.AST(ast,ast_hint,src)
+	res.get_astdata()
+	#resrc = res.show()
+	#resrc = 'struct __va_list_tag{    unsigned int gp_offset;    unsigned int fp_offset;    void *overflow_arg_area;    void *reg_save_area;};' + resrc
+	return res
 
 
 
 
 
-fn = 'tesx'
+fn = 'y'
 if __name__ == '__main__':
 	import os
 	os.system('clang -Xclang -dump-tokens -fsyntax-only ' + fn + '.c 2>&1 |  sed -e "s/[^\']*\'\(.*\)\'[^\']*/\\1/" > ' + fn + '.tokenized.c')
@@ -83,6 +83,33 @@ if __name__ == '__main__':
 		exit()
 	
 	os.system('clang -Xclang -ast-dump -fsyntax-only %s.tokenized.c > %s.astdump 2>/dev/null' % (fn,fn))
-	ass = src2ast('%s.tokenized.c' % fn,'%s.astdump' % fn)
+	csrc = open('%s.tokenized.c' % fn,'r').read().split('\n')
+	ast = src2ast('%s.tokenized.c' % fn,'%s.astdump' % fn)
+	aststr = ast.show()
 	with open('t.c','w') as fp:
-		fp.write(ass)
+		fp.write(aststr)
+	#print(ast.get_astdata())
+	#c_cfg.data_miyasui(ast.get_astdata())
+	c_cfg.validate_astdata(ast.get_astdata(),CursorKind.TRANSLATION_UNIT)
+	print('validate passed')
+	ds = ast.subexpr_line_list()
+	#print(ds)
+	#print(ds[-1])
+	
+	for (a,b),nsize,tree in ds:
+		#if nsize<5:
+		#	continue
+		print(tree)
+		print(' '.join(csrc[a-1:b]))
+		print(a,b)
+		nast = my_c_ast.load_astdata(tree)
+		nast.before_show()
+		print(nast.show())
+		
+		tree = c_cfg.alphaconv(tree)
+		print(tree)
+		nast = my_c_ast.load_astdata(tree)
+		nast.before_show()
+		print(nast.show())
+	
+	

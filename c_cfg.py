@@ -1,6 +1,6 @@
 from clang.cindex import CursorKind
 import pycparser
-import c_ast
+import my_c_ast
 
 # liteeal can be expr
 # expr can be stmt
@@ -59,7 +59,7 @@ nont_reduce = {
 	],
 	
 	#from c_type_cfg
-	'type': [
+	'type_type': [
 		pycparser.c_ast.ArrayDecl,
 		pycparser.c_ast.FuncDecl,
 		pycparser.c_ast.TypeDecl,
@@ -68,22 +68,27 @@ nont_reduce = {
 	'paramlist': [
 		pycparser.c_ast.ParamList
 	],
+	'type': [
+		pycparser.c_ast.Typename
+	],
 	'typename': [
 		pycparser.c_ast.Typename
 	],
 	'typedecltype': [
 		pycparser.c_ast.Struct,
 		pycparser.c_ast.Union,
+		pycparser.c_ast.Enum,
 		pycparser.c_ast.IdentifierType,
 	],
 }
-
 
 reduced_type = dict(sum(map(lambda ds: list(map(lambda v: (v,ds[0]),ds[1])), nont_reduce.items()),[]))
 #def get_node_type
 
 for v in nont_reduce['expr']:
 	nont_reduce['stmt'].append(v)
+
+#print(nont_reduce)
 
 # None is for pass.
 cfg = {
@@ -109,7 +114,7 @@ cfg = {
 	CursorKind.DEFAULT_STMT: ['stmt'],
 	CursorKind.DO_STMT: ['stmt','expr'],
 	CursorKind.ENUM_CONSTANT_DECL: ['name',['expr','option']],
-	CursorKind.ENUM_DECL: ['name',['decl','list']],
+	CursorKind.ENUM_DECL: ['enumname',['decl','list']],
 	CursorKind.FIELD_DECL: ['type','name',['expr','option']], # [int hogehuga] in [struct{int hogehuga};]
 	CursorKind.FLOATING_LITERAL: ['floatliteral'],
 	CursorKind.FOR_STMT: [['stmt','option'],['expr','option'],['expr','option'],'stmt'],
@@ -131,7 +136,7 @@ cfg = {
 	CursorKind.PURE_ATTR: None, # __attribute__((__pure__))    skip. (or remove?)
 	CursorKind.RETURN_STMT: [['expr','option']],
 	CursorKind.STRING_LITERAL: ['stringliteral'],
-	CursorKind.STRUCT_DECL: ['type_name',['decl','list']],
+	CursorKind.STRUCT_DECL: ['structname',['decl','list']],
 	CursorKind.SWITCH_STMT: ['expr','stmt'],
 	CursorKind.StmtExpr: None, # return ({int x = 3;4;});   GNU extension?, skip.
 	CursorKind.TRANSLATION_UNIT: [['decl','list']],
@@ -140,25 +145,45 @@ cfg = {
 	CursorKind.UNARY_OPERATOR: ['unop','expr'], #what is difference with CursorKind.CXX_UNARY_EXPR
 	CursorKind.UNEXPOSED_ATTR: None, # __attribute__((__nothrow__))   skip. (or remove?)
 	CursorKind.UNEXPOSED_EXPR: ['expr'], # Implicit cast (len==1) or initialize struct like .d=3 (len==2) or other insane expressions
-	CursorKind.UNION_DECL: ['type_name',['decl','list']],
+	CursorKind.UNION_DECL: ['unionname',['decl','list']],
 	CursorKind.VAR_DECL: ['type','name',['expr','option']], # ayasii
 	CursorKind.VISIBILITY_ATTR: None, # __attribute__((visibility("hidden"))). skip.
 	CursorKind.WHILE_STMT: ['expr','stmt'],
 	CursorKind.UNEXPOSED_DECL: None, #mousiran
-
+}
+"""
 	# from c_type_cfg
-	pycparser.c_ast.Typename: [['string','list'],'type'],
+	pycparser.c_ast.Typename: [['tyspec','list'],'type'],
 	
 	pycparser.c_ast.ArrayDecl: [['dim_expr','option'],'type'],
-	pycparser.c_ast.TypeDecl: [['string','list'],'typedecltype'],
-	pycparser.c_ast.PtrDecl: [['string','list'],'type'],
+	pycparser.c_ast.TypeDecl: [['tyspec','list'],'typedecltype'],
+	pycparser.c_ast.PtrDecl: [['tyspec','list'],'type'],
 	pycparser.c_ast.FuncDecl: [['paramlist','option'],'type'],
 	pycparser.c_ast.ParamList: [['typename','list']],
 	
 	pycparser.c_ast.Struct: ['structname'],
 	pycparser.c_ast.Union: ['unionname'],
-	pycparser.c_ast.IdentifierType: [['string','list']],
+	pycparser.c_ast.IdentifierType: [['tyspec','list']],
 }
+"""
+
+cfg_fortype = {
+	pycparser.c_ast.Typename: [(['tyspec','list'],'quals'),('type_type','type')],
+	
+	pycparser.c_ast.ArrayDecl: [(['integerliteral','option'],'dim'),('type_type','type')],
+	pycparser.c_ast.TypeDecl: [(['tyspec','list'],'quals'),('typedecltype','type')],
+	pycparser.c_ast.PtrDecl: [(['tyspec','list'],'quals'),('type_type','type')],
+	pycparser.c_ast.FuncDecl: [(['paramlist','option'],'args'),('type_type','type')],
+	pycparser.c_ast.ParamList: [(['typename','list'],'params')],
+	
+	pycparser.c_ast.Struct: [('structname','name')],
+	pycparser.c_ast.Union: [('unionname','name')],
+	pycparser.c_ast.Enum: [('enumname','name')],
+	pycparser.c_ast.IdentifierType: [(['tyspec','list'],'names')],
+}
+
+for k,v in cfg_fortype.items():
+	cfg[k] = list(map(lambda x: x[0],v))
 
 """
 CursorKind.CSTYLE_CAST_EXPR
@@ -362,11 +387,13 @@ cfg2str = {
 }
 
 
-import c_type_cfg
-
+"""
 leaftypes = [
-	'binop', 'stringliteral', 'integerliteral', 'unop', 'label', 'charliteral', 'casop', 'memberrefop', 'floatliteral'
+	'binop', 'stringliteral', 'integerliteral', 'unop', 'label', 
+	'charliteral', 'casop', 'memberrefop', 'floatliteral',
+	'tyspec',
 ]
+"""
 
 shortleavs = {
 	'binop': ['=', '&', '==', '>', '||', '|', '-', '+', '/', '<<', '>>', '!=', '>=', '<=', '&&', ',', '%', '^', '<', '*'], 
@@ -378,31 +405,51 @@ shortleavs = {
 	'casop': ['*=', '|=', '&=', '>>=', '<<=', '-=', '^=', '%=', '/=', '+='], 
 	'memberrefop': ['.', '->'], 
 	'NULL': [''],
+	'tyspec': [
+		'double', 'float',  'int', 'long', 'const', 'static', 'register',
+		'signed', 'unsigned',  'restrict',  'extern',  'short', 'void', 'volatile', 'char','inline'
+	],
 }
-
-alltypes = (
-	leaftypes + list(nont_reduce.keys()) + 
-	[['expr','option'],['stmt','option'],['decl','list'],['expr','list'],['stmt','list']] + 
-	list(cfg2str.keys()) + list(c_type_cfg.cfg.keys())
-)
 
 alphaleavs = {
 	'name': [],
 	'structname': [],
 	'unionname': [],
+	'enumname': [],
 	'label': [],
 }
+
+literalleaves = ['integerliteral','stringliteral','floatliteral','charliteral']
+
+alltypes = (
+	list(shortleavs.keys()) + list(alphaleavs.keys()) + list(nont_reduce.keys()) + 
+	[['expr','option'],['stmt','option'],['decl','list'],['expr','list'],['stmt','list']] + 
+	list(cfg2str.keys()) + list(cfg_fortype.keys()) + 
+	[['tyspec','list'],['paramlist','option'],['integerliteral','option'],['typename','list']] + literalleaves
+)
+
+#print(list(enumerate(alltypes)))
+
+rootidx = len(alltypes)
+#alltypes.append('all_root')
+#c_cfg.cfg['all_root'] = list(cfg2str.keys())
+
+typedata_cache = {}
 
 def init_idxnize():
 	for k in alphaleavs.keys():
 		alphaleavs[k] = []
+	typedata_cache = {}
 
 def leafdata2idx(ty,v):
+	#print(ty,v)
 	if ty in shortleavs.keys():
-		return shortleafs[ty].index(v)
+		#if ty == 'tyspec':
+		#	print(v)
+		return shortleavs[ty].index(v)
 	elif ty in alphaleavs.keys():
 		if v in alphaleavs[ty]:
-			alphaleavs[ty].index(v)
+			return alphaleavs[ty].index(v)
 		else:
 			ls = len(alphaleavs[ty])
 			alphaleavs[ty].append(v)
@@ -411,53 +458,121 @@ def leafdata2idx(ty,v):
 		return 0
 	elif ty == 'integerliteral':
 		kn = 256
+		#print(v)
+		if type(v) is str:
+			v = eval(v)
+		#print(v,type(v))
 		assert v>=0
 		if v<kn:
 			return v
 		else:
-			return -1
+			return kn
 	else:
 		assert False
 
 
 
+def idx2leafdata(ty,idx):
+	#print(ty,v)
+	if ty in shortleavs.keys():
+		#if ty == 'tyspec':
+		#	print(v)
+		return shortleavs[ty][idx]
+	elif ty in alphaleavs.keys():
+		return "__ALPHA_%s_%a__" % (ty,idx)
+		"""
+		if v in alphaleavs[ty]:
+			alphaleavs[ty][idx]
+		else:
+			ls = len(alphaleavs[ty])
+			alphaleavs[ty].append(v)
+			return ls
+		"""
+	elif ty in ['stringliteral','floatliteral','charliteral']:
+		return '__DUMMY_%s__' % ty
+	elif ty == 'integerliteral':
+		return str(idx)
+	else:
+		assert False
+
+
 
 def nodetype2idx(ty):
+	#print(alltypes)
 	return alltypes.index(ty)
 
 def idx2nodetype(idx):
 	return alltypes[idx]
 
+import random
 
-from pycparser import c_parser,c_ast,c_generator
+def alphaconv(data):
+	table = {nodetype2idx(k): {} for k in alphaleavs.keys()}
+	def rec(nd):
+		ty,act,cs = nd
+		if ty in table.keys():
+			assert len(cs)==0
+			if not act in table[ty].keys():
+				while True:
+					r = random.randint(0,60)
+					if r in table[ty].values():
+						continue
+					table[ty][act] = r
+					break
+			act = table[ty][act]
+		
+		return (ty,act,list(map(rec,cs)))
+	
+	return rec(data)
+
+from pycparser import c_parser,c_generator,plyparser
+import code
 
 
 parser = c_parser.CParser()
 generator = c_generator.CGenerator()
 
 def data2tystr(data):
-	
+	#print('data2tystr')
+	#data_miyasui(data)
 	def treenize(ast):
 		ty = ast.kind
+		#print(ast,ty)
+		if type(ty) is str:
+			if ast.kind == 'NULL':
+				return None
+			elif ast.kind == 'integerliteral':
+				return pycparser.c_ast.Constant(type='int',value=ast.leafdata)
+			else:
+				return ast.leafdata
 		args = {}
 		for k in ty.__init__.__code__.co_varnames:
 			if k=='self':
 				continue
 			args[k] = None
 		
-		cts = c_type_cfg.cfg[k]
-		assert len(ast.cs)==len(cts)
-		for (_,kna),v in zip(cts,ast.cs):
-			args[kna] = treenize(v)
+		cts = cfg_fortype[ty]
+		acs,_ = ast.get_alignmented_children()
+		#print(acs,cts)
+		assert len(acs)==len(cts)
+		for (nkata,kna),v in zip(cts,acs):
+			if type(nkata) is list and nkata[1]=='list':
+				args[kna] = list(map(treenize,v))
+			else:
+				args[kna] = treenize(v[0])
 		
-		return ty(*args)
+		#print(ty,args)
+		return ty(**args)
 	
-	ast = c_ast.nullast().load_astdata(data)	
+	ast = my_c_ast.nullast().load_astdata(data)	
 	tree = treenize(ast)
-	return generator.visit(tree)
+	#print(tree)
+	restr = generator.visit(tree)
+	#print('restr ::',restr)
+	return restr
 
-typedata_cache = []
 def tystr2data(ty):
+	#print(ty)
 	cache = False
 	if len(ty)<7: #'int [0]'
 		cache = True
@@ -471,21 +586,122 @@ def tystr2data(ty):
 		raise Oteage
 	
 	ki = ki.ext[0].init.to_type
+	#print(ki)
 	
-	def rec_conv(node,nast):
-		cs = c_type_cfg.cfg[type(node)]
+	def rec_conv(node,nast,ks):
+		if type(node) is str:
+			nast.isleaf = True
+			nast.leafdata = node
+			nast.kind = ks
+			return nast
+		#print(node)
+		#print(c_type_cfg.cfg)
+		#if type(node) is pycparser.c_ast.Enum:
+		#	code.interact(local={'node':node})
+		
+		assert node is not None
+		#if node is None:
+		#	return my_c_ast.AST(('NULL',''))
+		cs = cfg_fortype[type(node)]
 		nast.kind = type(node)
 		tcs = []
-		for _,k in cs:
-			tcs.append(rec_conv(c_ast.nullast(),node.__getattribute__(k)))
+		#print(cs)
+		for ks,k in cs:
+			if type(ks) is not str:
+				ks = ks[0]
+			kv = node.__getattribute__(k)
+			if kv is None:
+				tcs.append(my_c_ast.AST(('NULL','')))
+				continue
+			if type(node) is pycparser.c_ast.ArrayDecl and k=='dim':
+				#code.interact(local={'kv': kv,'node':node})
+				# aki
+				if type(kv) is pycparser.c_ast.Constant and kv.type == 'int':
+					dn = eval(kv.value)
+				else:
+					dn = 0
+				cast = my_c_ast.nullast()
+				cast.kind = 'integerliteral'
+				cast.isleaf = True
+				cast.leafdata = dn
+				tcs.append(cast)
+				continue
+				
+			if type(kv) is list:
+				for rkv in kv:
+					tcs.append(rec_conv(rkv,my_c_ast.nullast(),ks))
+			else:
+				tcs.append(rec_conv(kv,my_c_ast.nullast(),ks))
 		nast.children = tcs
+		#print('rec',nast.kind)
+		return nast
 	
-	ast = rec_conv(ki,c_ast.nullast())
-	ast.treenize()
-	res = ast.astdata
+	ast = rec_conv(ki,my_c_ast.nullast(),'MITEI')
+	res = ast.get_astdata(),ast.size
 	if cache:
 		typedata_cache[ty] = res
+	#print('tystr2data')
+	#data_miyasui(res[0])
 	return res
+
+
+
+
+def data_miyasui(data,d=0):
+	ty,act,cs = data
+	print('  ' * d,idx2nodetype(ty),act)
+	for c in cs:
+		data_miyasui(c,d+1)
+
+def validate_astdata(data,tys):
+	ty,act,cs = data
+	#code.interact(local={'data':data})
+	try:
+		assert idx2nodetype(ty)==tys
+		#print('firch')
+		if type(tys) is list:
+			if tys[1]=='option':
+				if act==0:
+					assert len(cs)==0
+				else:
+					assert len(cs)==1
+					validate_astdata(cs[0],tys[0])
+			elif tys[1]=='list':
+				if act==0:
+					assert len(cs)==0
+				else:
+					assert len(cs)==2
+					validate_astdata(cs[0],tys[0])
+					validate_astdata(cs[1],tys)
+			else:
+				assert False
+		elif tys in nont_reduce.keys():
+			assert len(cs)==1
+			ta = nont_reduce[tys][act]
+			validate_astdata(cs[0],ta)
+		elif tys in cfg2str.keys() or tys in cfg_fortype.keys():
+			assert act==0
+			assert len(cfg[tys])==len(cs)
+			#print('forl',data)
+			for a,b in zip(cs,cfg[tys]):
+				validate_astdata(a,b)
+		elif tys in shortleavs.keys():
+			assert len(cs)==0
+			assert 0 <= act and act < len(shortleavs[tys])
+		elif tys in alphaleavs.keys():
+			assert len(cs)==0
+			pass
+		elif tys in literalleaves:
+			pass
+		else:
+			assert False
+	except(AssertionError):#,TypeError):
+		print('assert failure',ty,idx2nodetype(ty),tys,act,len(cs))
+		env = {'data':data,'tys': tys}
+		print(env)
+		code.interact(local=env)
+		exit()
+
 
 
 

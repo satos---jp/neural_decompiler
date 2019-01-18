@@ -152,12 +152,8 @@ def init_seq2tree():
 	
 	n_maxlen = 100
 	
-	with open(
-			(data,c_vocab) = pickle.load(fp)
-			asm_vocab = [i for i in range(256)]
-	
-	with open('data_ast.pickle','rb') as fp:
-			(data,c_vocab,asm_vocab) = pickle.load(fp)
+	with open('data_asm_ast.pickle','rb') as fp:
+			(data,asm_vocab) = pickle.load(fp)
 	
 	#data.data = list(filter(lambda xy: len(xy[0])<20 and len(xy[1])<10,data.data))
 	data = list(filter(lambda xy: len(xy[1])<n_maxlen,data))
@@ -177,10 +173,6 @@ def init_seq2tree():
 	v_eos_src = len(asm_vocab)
 	asm_vocab += ['__EOS__']
 	src_vocab_len = len(asm_vocab)
-	
-	v_eos_dst = len(c_vocab)
-	c_vocab += ['__EOS__']
-	dst_vocab_len = len(c_vocab)
  
 	model = Seq2Tree(n_layer, src_vocab_len, dst_vocab_len , n_unit, v_eos_src, v_eos_dst, n_maxlen)
 	#serializers.load_npz('models/iter_5600_editdist_0.866712_time_2019_01_15_04_50_45.npz',model)
@@ -253,7 +245,7 @@ def init_seq2tree():
 
 
 def main():
-	model,dataset,translate = init_seq2seq()
+	model,dataset,translate = init_seq2tree()
 	
 	optimizer = chainer.optimizers.Adam()
 	optimizer.setup(model)

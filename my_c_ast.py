@@ -55,8 +55,11 @@ class AST:
 		return res
 	
 	def __init__(sl,x,ast_hint=None,src=None,*,isnull=False):
+		sl.astdata = None
+		sl.size = 0
 		if isnull:
 			sl.kind = None
+			sl.isnullast = True
 			return
 		global struct_decl_list
 		sl.src = src
@@ -234,7 +237,11 @@ class AST:
 			#if na == 'satos_temporary_struct_union_decl_16':
 			#	sl.debug(x)
 			assert len(na)>0
-			tcs = [AST(('name',na)),] + tcs
+			if sl.kind == CursorKind.STRUCT_DECL:
+				nana = 'structname'
+			else:
+				nana = 'unionname'
+			tcs = [AST((nana,na)),] + tcs
 		elif sl.kind == CursorKind.FUNCTION_DECL:
 			#sl.debug(x)
 			na = x.spelling
@@ -258,7 +265,7 @@ class AST:
 			tcs = [re,AST(('memberrefop',op)),AST(('name',na))]
 		elif sl.kind ==	CursorKind.ENUM_DECL:
 			na = x.spelling
-			tcs = [AST(('name',na))] + tcs
+			tcs = [AST(('enumname',na))] + tcs
 		elif sl.kind ==	CursorKind.ENUM_CONSTANT_DECL:
 			na = x.spelling
 			tcs = [AST(('name',na))] + tcs
@@ -297,159 +304,225 @@ class AST:
 			return 'INVALID'
 	
 	
-	def treenize(sl):
-		if type(sl.kind) is str:
-			d = sl.leafdata
-			if sl.kind in c_cfg.node_id_data.keys():
-				c_cfg.node_id_data[sl.kind] |= set([d])
-			else:
-				c_cfg.node_id_data[sl.kind] = set([d])
-		else:
-			expt = c_cfg.cfg[sl.kind]
-			for c in sl.children:
-				c.treenize()
+	
+	def get_alignmented_children(sl):
+		expt = c_cfg.cfg[sl.kind]
+		def f(v):
+			nk = v.kind
+			if type(nk) is not str:
+				nk = c_cfg.reduced_type[nk]
+			return nk
 			
-			#print(sl.kind)
-			def f(v):
-				nk = v.kind
-				if type(nk) is not str:
-					nk = c_cfg.reduced_type[nk]
-				return nk
-								
-			cks = list(map(f,sl.children))
-			#print(expt,cks)
+		cks = list(map(f,sl.children))
+		#print(expt,cks)
 			
-			def same_type(expt,real):
-				# expr can be stmt
-				return expt == real or (expt,real) == ('stmt','expr')
+		def same_type(expt,real):
+			# expr can be stmt
+			return expt == real or (expt,real) == ('stmt','expr')
 				
-			i = 0
-			bexpt = expt
+		i = 0
+		bexpt = expt
 			
-			tree_branch = [[]]
+		tree_branch = [[]]
 			
-			try:
-				while i < len(cks):
-					nk = cks[i]
-					nch = sl.children[i]
-					if type(expt[0]) is list:
-						if expt[0][1]=='list':
-							if same_type(expt[0][0],nk):
-								tree_branch[-1].append(nch)
-							else:
-								tree_branch.append([])
-								expt = expt[1:]
-								continue
-						elif expt[0][1]=='option':
-							assert tree_branch[-1]==[]
-							if same_type(expt[0][0],nk) or nk == 'NULL':
-								tree_branch[-1].append(nch)
-								tree_branch.append([])
-								expt = expt[1:]
-							else:
-								tree_branch.append([])
-								expt = expt[1:]
-								continue
-						else:
-							assert Failure
+		while i < len(cks):
+			nk = cks[i]
+			nch = sl.children[i]
+			if type(expt[0]) is list:
+				if expt[0][1]=='list':
+					if same_type(expt[0][0],nk):
+						tree_branch[-1].append(nch)
 					else:
-						et = expt[0]
-						assert same_type(et,nk)
-						assert tree_branch[-1]==[]
+						tree_branch.append([])
+						expt = expt[1:]
+						continue
+				elif expt[0][1]=='option':
+					assert tree_branch[-1]==[]
+					if same_type(expt[0][0],nk) or nk == 'NULL':
 						tree_branch[-1].append(nch)
 						tree_branch.append([])
 						expt = expt[1:]
-					i += 1
-				
-				if tree_branch[-1]==[]:
-					tree_branch = tree_branch[:-1]
-				tree_branch += [[] for _ in expt]
-				assert all(map(lambda x: x[1] in ['list','option'],expt))
-				
-				assert len(tree_branch)==len(bexpt)
-				sl.astdata = sl.gen_astdata(tree_branch,bexpt)
-				return sl.astdata
-			except AssertionError:
-				print('mousiran')
-				raise AssertionError
-				print('failure')
-				print(sl.kind)
-				print(bexpt,cks)
-				sl.debug()
-	
-	def gen_asdata(sl,tree_branch,expt):
-		res = []
-		for k,v in zip(expt,tree_branch):
-			tidx = c_cfg.nodetype2idx(k)
-			if type(k) is str:
-				if k in nont_reduce.keys():
-					assert len(v)==1
-					idx = node_reduce[k].index(v[0])
-					res.append((tidx,idx,[v[0].astdata]))
-				elif k == 'type':
-					res.append(c_cfg.tystr2data(v[0].leafdata))
-				else:
-					idx = c_cfg.leafdata2idx(tidx,v[0].leafdata)
-					res.append((tidx,idx,[]))
-			else:
-				if k[1]=='option':
-					if v == []:
-						res.append((tidx,0,[]))
 					else:
-						res.append((tidx,1,[v[0].astdata]))
+						tree_branch.append([])
+						expt = expt[1:]
+						continue
 				else:
-					assert k[1]=='list'
-					nre = (tidx,0,[])
-					for cv in v[::-1]:
-						nre = res.append((tidx,1,[nre,cv.astdata]))
-					res.append(nre)
+					assert Failure
+			else:
+				et = expt[0]
+				assert same_type(et,nk)
+				assert tree_branch[-1]==[]
+				tree_branch[-1].append(nch)
+				tree_branch.append([])
+				expt = expt[1:]
+			i += 1
 		
-		return (c_cfg.nodetype2idx(sl.kind),0,res)
+		if tree_branch[-1]==[]:
+			tree_branch = tree_branch[:-1]
+		assert all(map(lambda x: x[1] in ['list','option'],expt))
+		
+		tree_branch += [[] for _ in range(min(len(expt),len(bexpt)-len(tree_branch)))]
+		#print(tree_branch,bexpt)
+		assert len(tree_branch)==len(bexpt)
+		
+		return tree_branch,bexpt
+		
 	
-	def nullast():
+	def get_astdata(sl):
+		if sl.astdata is not None:
+			return sl.astdata
+		#print(sl.kind)
+		if type(sl.kind) is str:
+			sl.size = 1
+			tidx = c_cfg.nodetype2idx(sl.kind)
+			if sl.kind == 'type':
+				tasd,nsize = c_cfg.tystr2data(sl.leafdata)
+				#print(tcast)
+				sl.isleaf = False
+				sl.kind = c_cfg.idx2nodetype(tasd[0])
+				sl.astdata = tasd
+				#print('retkind',sl.astdata.kind)
+				sl.size = nsize
+			elif sl.kind in c_cfg.nont_reduce.keys():
+				assert False
+				"""
+				elif sl.kind in c_cfg.nont_reduce.keys():
+					code.interact(local={'k':k,'v':v})
+					assert len(sl.children)==0:
+					mc = sl.children[0]
+					idx = c_cfg.nont_reduce[k].index(sl.kind)
+					sl.astdata = (tidx,idx,[sl.children[0].astdata])
+				"""
+			else:
+				idx = c_cfg.leafdata2idx(sl.kind,sl.leafdata)
+				sl.astdata = (tidx,idx,[])
+			return sl.astdata
+		else:
+			tree_branch,expt = sl.get_alignmented_children()
+			databody = []
+			for k,v in zip(expt,tree_branch):
+				databody.append(sl.gen_astdata(k,v))
+			#print('databody',databody,expt,tree_branch)
+			sl.astdata = (c_cfg.nodetype2idx(sl.kind),0,databody)
+			sl.size = 1
+			for c in sl.children:
+				#print(c.kind)
+				sl.size += c.size
+			return sl.astdata
+	
+	def getmid(sl,k,v):
+		if k in c_cfg.nont_reduce.keys():
+			#v.get_astdata()
+			#print(k,v,v.kind)
+			mi = c_cfg.nont_reduce[k].index(v.kind)
+			d = [v.get_astdata()]
+		else:
+			#print(k,v,v.leafdata)
+			mi = c_cfg.leafdata2idx(k,v.leafdata)
+			d = []
+		return mi,d
+	
+	def gen_astdata(sl,k,v):
+		tidx = c_cfg.nodetype2idx(k)
+		if type(k) is str:
+			assert len(v)==1
+			v[0].get_astdata()
+			#print(k,v[0].kind)
+			if k=='type' and v[0].kind == 'type':
+				code.interact(local={'k':k,'v':v})
+			#if k=='type':
+			#	res = (tidx,,v[0].get_astdata())
+			#else:
+			mi,d = sl.getmid(k,v[0])
+			res = (tidx,mi,d)
+		else:
+			k0idx = c_cfg.nodetype2idx(k[0])
+			if k[1]=='option':
+				if v == [] or v[0].kind=='NULL':
+					res = (tidx,0,[])
+				else:
+					#print(k[0],v[0],v[0].kind)
+					mi,d = sl.getmid(k[0],v[0])
+					res = (tidx,1,[(k0idx,mi,d)])
+			elif k[1]=='list':
+				nre = (tidx,0,[])
+				for cv in v[::-1]:
+					#print(k[0],cv.kind)
+					#assert cv.kind in c_cfg.nont_reduce[k[0]]
+					#if type(cv.kind) is str:
+					#	nre = (tidx,1,[cv.get_astdata(),nre])
+					#else:
+					#code.interact(local={'cv':cv,'k':k})
+					mi,d = sl.getmid(k[0],cv)
+					nre = (tidx,1,[(k0idx,mi,d),nre])
+				res = nre
+			else:
+				assert False
+		#print(k,v,res)
+		return res
+	
+	def nullast(sl):
 		return AST(None,isnull=True)
 
-	def load_astdata(sl,data,terminal_ids):
+	def load_astdata_unit(sl,ty,ch):
+		cty,cidx,ccs = ch
+		#print(ty,ccs)
+		assert type(ty) is str
+		#if ty != 'type':
+		#assert len(ccs)==1
+		if ty=='type':
+			res = AST(('type',c_cfg.data2tystr(ccs[0])))
+		elif ty in c_cfg.nont_reduce.keys():
+			tty = c_cfg.nont_reduce[ty][cidx]
+			addast = sl.nullast().load_astdata(ccs[0])
+			assert addast.kind == tty
+			res = addast
+		else:
+			assert len(ccs)==0
+			#res = AST((ty,c_cfg.terminal_ids[ty][idx]))
+			res = AST((ty,c_cfg.idx2leafdata(ty,cidx)))
+		return res
+	
+	def load_astdata(sl,data):
+		#print(data)
 		idx,mvnum,cs = data
 		assert mvnum == 0
 		sl.invalid = False
 		sl.kind = c_cfg.idx2nodetype(idx)
-		assert len(cs)==len(c_cfg.cfg[sl.kind])
+		#print('load data',sl.kind)
+		#c_cfg.data_miyasui(data)
+		
+		if type(sl.kind) is str:
+			return sl.load_astdata_unit(sl.kind,cs[0])
+		"""
+		if not type(sl.kind) is list:
+			assert len(cs)==len(c_cfg.cfg[sl.kind])
+		else:
+			if sl.kind[1]=='list':
+				pass
+			elif sl.kind[1]=='option':
+				pass
+			else:
+				assert False
+		"""
 		tcs = []
 		for ch,ty in zip(cs,c_cfg.cfg[sl.kind]):
-			cty,cidx,ccs = ch
-			assert c_cfg.idx2nodetype(cty)==ty
+			#print(ty,ch)
 			if type(ty) is str:
-				assert len(ccs)==1
-				if ty in nont_reduce.keys():
-					tty = nont_reduce[ty][cidx]
-					addast = sl.nullast().load_astdata(ccs[0],terminal_ids)
-					assert addast.kind == tty
-					tcs.append(addast)
-				elif ty=='type':
-					tcs.append(AST(('type',c_cfg.data2tystr(ch))))
-				else:
-					assert len(ccs)==0
-					tcs.append(AST((ty,terminal_ids[ty][idx])))
+				tcs.append(sl.load_astdata_unit(ty,ch))
 			else:
+				cty,cidx,ccs = ch
 				if ty[1]=='option':
-					if cid==0:
+					if cidx==0:
 						assert len(ccs)==0
 						tcs.append(AST(('NULL','')))
 					else:
 						assert len(ccs)==1
-						tty = nont_reduce[ty[0]][ccs[0][1]]
-						addast = sl.nullast().load_astdata(ccs[0],terminal_ids)
-						assert addast.kind == tty
-						tcs.append(addast)
+						tcs.append(sl.load_astdata_unit(ty[0],ccs[0]))
 				elif ty[1]=='list':
-					tty = nont_reduce[ty[0]][cidx]
 					while cidx != 0:
 						assert len(ccs)==2
-						tty = nont_reduce[ty[0]][ccs[0][1]]
-						addast = sl.nullast().load_astdata(ccs[0],terminal_ids)
-						assert addast.kind == tty
-						tcs.append(addast)
+						tcs.append(sl.load_astdata_unit(ty[0],ccs[0]))
 						cty,cidx,ccs = ccs[1]
 					assert len(ccs)==0
 				else:
@@ -458,14 +531,35 @@ class AST:
 		return sl
 	
 	def subexpr_line_list(sl):
+		#sl.debug()
+		#print(sl.kind,type(sl.kind))
+		if type(sl.kind) is str:
+			return []
+		if sl.kind.__module__ != 'clang.cindex':
+			return []
 		res = []
 		for c in sl.children:
 			res += c.subexpr_line_list()
 		
 		if not sl in [CursorKind.COMPOUND_STMT]:
-			res.append((sl.top,sl.bottom),(c_cfg.rootidx,0,sl.asdata))
+			res.append(((sl.top,sl.bottom),sl.size,(c_cfg.rootidx,0,[sl.astdata])))
 		return res
-
+	
+	
+	def before_show(sl):
+		if sl.kind != CursorKind.FOR_STMT:
+			sl.children = list(filter(lambda x: x.kind != 'NULL',sl.children))
+		
+		for c in sl.children:
+			c.before_show()
 
 def nullast():
 	return AST(None,isnull=True)
+	
+	
+def load_astdata(data):
+	idx,mvnum,cs = data
+	assert idx==c_cfg.rootidx and len(cs)==1
+	return nullast().load_astdata(cs[0])
+
+

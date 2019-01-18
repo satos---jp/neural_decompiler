@@ -8,12 +8,18 @@ vocab_src = set([])
 vocab_dst = set([])
 types = set([])
 
+x64_opcodes_registers = [
+	'setbe', 'bl', 'addsd', 'cmovge', 'divss', 'es', 'movs', 'fchs', 'rsi', 'cvtsi2sd', 'ror', 'cmovns', 'fmulp', 'andpd', 'r10d', 'setb', 'setne', '[', 'rcx', 'movaps', 'shr', 'cvttsd2si', 'xmm6', 'esi', 'cx', 'cmovg', 'cmovae', 'r15', 'movdqa', ':', 'and', 'setnp', 'fldcw', 'DWORD', 'fnstcw', ')', 'fldpi', 'fprem', 'al', 'WORD', '2', 'scas', 'sub', 'cvtpd2ps', 'or', 'ret', 'ja', 'mulsd', 'dil', 'r14b', 'r9d', 'mfence', 'QWORD', 'xmm0', 'ucomisd', 'fs', 'xmm2', 'fld', 'unpcklpd', '*', 'fstsw', 'si', 'sete', 'tzcnt', 'fdivp', 'dl', 'test', 'sahf', 'rax', '(', 'fsubp', 'sil', 'movd', 'cmp', 'r13', 'shrd', 'call', 'jp', 'bx', 'jg', 'add', '1', '8', 'subsd', 'divsd', 'setg', 'sqrtss', 'r12b', 'jae', 'leave', 'xmm5', 'imul', 'cmpxchg', 'cvttss2si', 'rsp', 'fsubrp', 'r11b', 'cdqe', 'jnp', 'movzx', 'cmova', 'ds', 'lea', 'andps', 'r9b', 'r15d', 'st', 'unpcklps', ',', 'idiv', 'xmm4', 'setp', 'movsx', 'TBYTE', 'mulss', 'js', 'repnz', 'setge', 'r8b', 'edi', 'stos', 'eax', 'xmm7', 'syscall', 'cdq', 'jle', 'fistp', 'sar', 'ah', 'rol', 'pop', 'ucomiss', 'push', 'jge', 'xmm1', 'movsd', 'xmm3', 'cmovbe', 'movapd', '0', 'addss', 'seta', 'cbw', 'subss', 'ecx', 'movabs', 'fldz', 'jl', 'int', 'cmovs', 'cvtps2pd', 'XMMWORD', ']', 'jne', 'xorpd', 'orpd', 'cmovl', 'lock', 'dx', 'r12w', 'bsf', 'jns', 'r8', 'jbe', 'nop', 'not', 'je', '-', 'xadd', 'pushf', 'movsxd', 'setae', 'xchg', 'pxor', 'r11', 'r12', 'xorps', 'r9', 'faddp', '+', 'neg', 'setle', 'di', 'fdivrp', 'jmp', 'r11d', 'r8d', 'r10b', 'rip', 'punpckldq', 'paddd', 'r12d', 'cwde', 'fild', 'cvtsi2ss', 'cmove', 'BYTE', 'ebx', 'edx', 'rep', 'fpatan', 'rbp', '4', 'r14d', 'ax', 'rdx', 'cqo', 'rbx', 'div', 'xor', 'pcmpeqd', 'mov', 'rdi', 'cmovle', 'fld1', 'r13b', 'fxch', 'bswap', 'psubd', 'mul', 'movq', 'cl', 'setl', 'shl', 'fabs', 'r13d', 'bsr', 'dh', 'fucomip', 'r10', 'jb', 'r14', 'movss', 'movmskpd', 'fstp']
+
+
 import collections 
 import os
 import sys
 import random
 import asm_objd_conv
 import csrc2ast
+import my_c_ast
+import c_cfg
 
 def getsub(fn,s):
 	if fn[-len(s):]==s:
@@ -47,8 +53,14 @@ for fn in srcs[:10]:
 		#print(s)
 		continue
 	#print(ds)
+	with open(fn + '.tokenized.c') as fp:
+		csrc = fp.read()
+		csrc = csrc.split('\n')
 	
-	astdata = csrc2ast.src2ast(fn + '.tokenized.c',fn + '.parsed').subexpr_line_list()
+	try:
+		astdata = csrc2ast.src2ast(fn + '.tokenized.c',fn + '.parsed').subexpr_line_list()
+	except c_cfg.Oteage:
+		continue
 
 	nibeki = [1<<(i*8) for i in range(8)]
 	def asm_trim(v):
@@ -79,7 +91,17 @@ for fn in srcs[:10]:
 	
 	
 	
-	for (a,b),tree in astdata:
+	for (a,b),nsize,tree in astdata:
+		if b-a > 100:
+			continue # too big.
+		#print(tree)
+		"""
+		print(' '.join(csrc[a-1:b]))
+		last = my_c_ast.load_astdata(tree)
+		last.before_show()
+		print(last.show())
+		"""
+		
 		nas = []
 		for i,d in ds:
 			if a <= i and i < b:
@@ -91,6 +113,9 @@ for fn in srcs[:10]:
 		
 		try:
 			# data augumentation
+			aug_tcs = []
+			for _ in range(3):
+				aug_tcs.append(c_cfg.alphaconv(tree))
 			
 			aug_asm = []
 			for _ in range(3):
@@ -110,8 +135,8 @@ for fn in srcs[:10]:
 			#maxlavellen = max(maxlavellen,
 			
 			for a in aug_asm:
-				data.append((a,tree))
-			#data.append((nas,ncs))
+				for b in aug_tcs:
+					data.append((a,b))
 		except InvalidToken:
 			pass
 
@@ -128,8 +153,6 @@ for fn in srcs[:10]:
 #vocab_src = sorted(map(lambda xy: (xy[1],xy[0]),collections.Counter(vocab_src).items()))[::-1][:1000]
 #lvoc = len(vocab_src)
 #vocab_src = list(map(lambda xy: xy[1],vocab_src))
-vocab_src = list(vocab_src)
-sys.stderr.write("vocab_src_len: %d\n" % len(vocab_src))
 vocab_dst = list(vocab_dst)
 sys.stderr.write("vocab_dst_len: %d\n" % len(vocab_dst))
 #print(vocab_dst)
@@ -140,7 +163,7 @@ sys.stderr.write("vocab_dst_len: %d\n" % len(vocab_dst))
 
 data = list(map(lambda xy: (
 					list(map(lambda t: vocab_dst.index(t),xy[0])),
-					list(map(lambda t: vocab_src.index(t),xy[1]))
+					xy[1]
 				),data))
 
 #data = list(map(lambda xy: (list(map(lambda t: int(t,16),xy[0])),list(map(lambda t: vocab_src.index(t) if t in vocab_src else lvoc,xy[1]))),data))
@@ -149,21 +172,22 @@ data = list(map(lambda xy: (
 
 #data = list(map(lambda xy: (list(map(lambda t: int(t,16),xy[0])),xy[1]),data))
 
-
 #print('data = ' + str(data))
 #print('c_vocab = ' + str(vocab_src))  
 print('data length',len(data))
 
 import pickle
 with open('data_asm_ast.pickle','wb') as fp:
-	pickle.dump((data,vocab_src,vocab_dst),fp)
+	pickle.dump((data,vocab_dst),fp)
 
 def show_data():
-	for k,vs in data:
-		print('data:',k)
-		print('source:',' '.join([vocab_src[v] for v in vs]))
+	for asm,tree in data:
+		print('asm:',' '.join([vocab_dst[v] for v in asm]))
+		nast = my_c_ast.load_astdata(tree)
+		nast.before_show()
+		print('source:',nast.show())
 
-show_data()
+#show_data()
 
 
 

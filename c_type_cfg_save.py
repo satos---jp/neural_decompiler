@@ -107,19 +107,7 @@ nont_reduce = {
 	],
 }
 
-cfg = {
-	pycparser.c_ast.Typename: [(('string','list'),'quals'),('type','type')],
-	
-	pycparser.c_ast.ArrayDecl: [(('expr','option'),'dim'),('type','type')],
-	pycparser.c_ast.TypeDecl: [(('string','list'),'quals'),('typedecltype','type')],
-	pycparser.c_ast.PtrDecl: [(('string','list'),'quals'),('type','type')],
-	pycparser.c_ast.FuncDecl: [(('paramlist','option'),'args'),('type','type')],
-	pycparser.c_ast.ParamList: [(('typename','list'),'params')],
-	
-	pycparser.c_ast.Struct: [('string','type_name')],
-	pycparser.c_ast.Union: [('string','type_name')],
-	pycparser.c_ast.IdentifierType: [(('string','list'),'names')],
-}
+
 
 
 
