@@ -136,50 +136,34 @@ for fn in srcs[:10]:
 			
 			for a in aug_asm:
 				for b in aug_tcs:
-					data.append((a,b))
+					data.append((a,nsize,b))
 		except InvalidToken:
 			pass
 
 
 
 
-"""
-./build/0848b888848180a1ae75b12bede3681371189593.pp.c:9:19: warning: trigraph ignored [-Wtrigraphs]
-  char *s8 = "??\\??=";                 ^
-"""
-#print(list(types))
-#exit()
 
-#vocab_src = sorted(map(lambda xy: (xy[1],xy[0]),collections.Counter(vocab_src).items()))[::-1][:1000]
-#lvoc = len(vocab_src)
-#vocab_src = list(map(lambda xy: xy[1],vocab_src))
 vocab_dst = list(vocab_dst)
 sys.stderr.write("vocab_dst_len: %d\n" % len(vocab_dst))
-#print(vocab_dst)
 
-#vocab_dst = list(filter(lambda x: x[:6]!='LABEL_' and x[:2]!='0x',vocab_dst))
-#print(vocab_dst)
-#exit()
 
 data = list(map(lambda xy: (
 					list(map(lambda t: vocab_dst.index(t),xy[0])),
-					xy[1]
+					xy[1],
+					xy[2]
 				),data))
 
-#data = list(map(lambda xy: (list(map(lambda t: int(t,16),xy[0])),list(map(lambda t: vocab_src.index(t) if t in vocab_src else lvoc,xy[1]))),data))
-#data = list(map(lambda xy: (list(map(lambda t: t,xy[0])),list(map(lambda t: vocab_src.index(t) if t in vocab_src else lvoc,xy[1]))),data))
-#vocab_src.append('__SOME__')
+c_vocab_arr = c_cfg.trans_array
 
-#data = list(map(lambda xy: (list(map(lambda t: int(t,16),xy[0])),xy[1]),data))
 
-#print('data = ' + str(data))
-#print('c_vocab = ' + str(vocab_src))  
 print('data length',len(data))
 
 import pickle
-with open('data_asm_ast.pickle','wb') as fp:
-	pickle.dump((data,vocab_dst),fp)
+with open('../data_asm_ast.pickle','wb') as fp:
+	pickle.dump((data,vocab_dst,c_vocab_arr),fp)
 
+#print(os.system('pwd'))
 def show_data():
 	for asm,tree in data:
 		print('asm:',' '.join([vocab_dst[v] for v in asm]))

@@ -3,6 +3,7 @@ import subprocess
 devnull = open('/dev/null','w')
 def tokenize(fn):
 	global devnull
+	assert fn[-2:]=='.c'
 	p = subprocess.Popen(['clang','-Xclang','-dump-tokens','-fsyntax-only',fn],stdout=devnull,stderr=subprocess.PIPE)
 	_,s = p.communicate()
 	s = s.decode()

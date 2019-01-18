@@ -20,12 +20,16 @@ Config.set_library_path("/usr/lib/llvm-7/lib")
 import tokenizer
 import my_c_ast
 
-def ast2token_seq(data,terminal_ids):
-	ast = c_ast.AST([],isnull=True).load_astdata(data,terminal_ids)
+def ast2token_seq(data):
+	ast = my_c_ast.load_astdata(data)
+	ast.before_show()
+	#code.interact(local={'ast':ast})
 	src = ast.show()
-	with open('tmp','w') as fp:
+	with open('tmp.c','w') as fp:
 		fp.write(src)
-	return tokenizer.tokenize('tmp')
+	res = tokenizer.tokenize('tmp.c')
+	#print(src,res)
+	return res
 
 import sys
 

@@ -52,7 +52,7 @@ nont_reduce = {
 		CursorKind.FIELD_DECL,
 		CursorKind.PARM_DECL,
 		CursorKind.STRUCT_DECL,
-		CursorKind.TYPEDEF_DECL,
+		#CursorKind.TYPEDEF_DECL,
 		CursorKind.UNION_DECL,
 		CursorKind.VAR_DECL,
 		CursorKind.FUNCTION_DECL,
@@ -108,7 +108,7 @@ cfg = {
 	CursorKind.CONST_ATTR: None, # __attribute__((__const__))   skip. (or remove?)
 	CursorKind.CONTINUE_STMT: [],
 	CursorKind.CSTYLE_CAST_EXPR: ['type','expr'], #TODO(satos) ayasii  -> # retrive type from .type.get_canonical().spelling 
-	CursorKind.CXX_UNARY_EXPR: ['sizeof_kasou_var'],  # only sizeof like things. TODO(satos) restore from 8
+	CursorKind.CXX_UNARY_EXPR: [],  # only sizeof like things. TODO(satos) restore from 8
 	CursorKind.DECL_REF_EXPR: ['name'],
 	CursorKind.DECL_STMT: [['decl','list']],
 	CursorKind.DEFAULT_STMT: ['stmt'],
@@ -361,8 +361,8 @@ cfg2str = {
 	CursorKind.FUNCTION_DECL: function_decl_func,
 	CursorKind.GOTO_STMT: 'goto {0};',
 	CursorKind.IF_STMT: (lambda cs: 'if(' + cs[0] + ')' + stmtize(cs[1]) + ('' if len(cs)==2 else 'else ' + stmtize(cs[2]))),
-	CursorKind.IMAGINARY_LITERAL: None, # TODO(satos) imaginary number. currently omit. 
-	CursorKind.INDIRECT_GOTO_STMT: None, # TODO(satos) like goto *hoge. Is this valid in standard C?
+	#CursorKind.IMAGINARY_LITERAL: None, # TODO(satos) imaginary number. currently omit. 
+	#CursorKind.INDIRECT_GOTO_STMT: None, # TODO(satos) like goto *hoge. Is this valid in standard C?
 	CursorKind.INIT_LIST_EXPR: (lambda cs: '{' + ','.join(cs) + '}'), # TODO(satos) sometimes too long, restrict?
 	CursorKind.INTEGER_LITERAL: '{0}',
 	CursorKind.LABEL_REF: '{0}',
@@ -422,11 +422,56 @@ alphaleavs = {
 literalleaves = ['integerliteral','stringliteral','floatliteral','charliteral']
 
 alltypes = (
-	list(shortleavs.keys()) + list(alphaleavs.keys()) + list(nont_reduce.keys()) + 
 	[['expr','option'],['stmt','option'],['decl','list'],['expr','list'],['stmt','list']] + 
-	list(cfg2str.keys()) + list(cfg_fortype.keys()) + 
-	[['tyspec','list'],['paramlist','option'],['integerliteral','option'],['typename','list']] + literalleaves
+	[['tyspec','list'],['paramlist','option'],['integerliteral','option'],['typename','list']] + 
+	literalleaves +
+	list(shortleavs.keys()) + list(alphaleavs.keys()) + list(nont_reduce.keys()) + 
+	list(cfg2str.keys()) + list(cfg_fortype.keys()) 
 )
+
+def nodetype2idx(ty):
+	#print(alltypes)
+	return alltypes.index(ty)
+
+def idx2nodetype(idx):
+	return alltypes[idx]
+
+
+#print(list(filter(lambda a: a[1] is None,[(k,cfg[k]) for k in cfg2str.keys()])))
+
+
+max_int_zantei = 256
+def transf(d):
+	if type(d) is str:
+		if d=='integerliteral':
+			rv = [[] for _ in range(max_int_zantei+1)]
+		elif d in ['stringliteral','floatliteral','charliteral']:
+			rv = [[]]
+	elif type(d) is list:
+		if d[1]=='option':
+			rv = [[],[nodetype2idx(d[0])]]
+		elif d[1]=='list':
+			rv = [[],[nodetype2idx(d[0]),nodetype2idx(d)]]
+	
+	return (d,rv)
+
+alphaconv_size = 60
+trans_array = (
+	[transf(k) for k in alltypes[:13]] + 
+	[(k,[[] for _ in v]) for k,v in shortleavs.items()] + 
+	[(k,[[] for _ in range(alphaconv_size)]) for k,_ in alphaleavs.items()] + # 
+	[(k,[[nodetype2idx(d)] for d in v]) for k,v in nont_reduce.items()] + 
+	[(k,[[nodetype2idx(d) for d in cfg[k]]]) for k in cfg2str.keys()] + 
+	[(k,[[nodetype2idx(d) for d in cfg[k]]]) for k in cfg_fortype.keys()] + 
+	[(None,[[i] for i in filter(lambda i: ('__module__' in dir(idx2nodetype(i)) and idx2nodetype(i).__module__=='clang.cindex'),range(len(alltypes)))])]
+)
+
+assert len(trans_array)==len(alltypes)+1 and all(map(lambda ab: ab[0][0]==ab[1],zip(trans_array[:-1],alltypes)))
+
+#print(trans_array)
+
+trans_array = list(map(lambda x: x[1],trans_array))
+#print(trans_array)
 
 #print(list(enumerate(alltypes)))
 
@@ -442,6 +487,7 @@ def init_idxnize():
 	typedata_cache = {}
 
 def leafdata2idx(ty,v):
+	global max_int_zantei
 	#print(ty,v)
 	if ty in shortleavs.keys():
 		#if ty == 'tyspec':
@@ -457,7 +503,7 @@ def leafdata2idx(ty,v):
 	elif ty in ['stringliteral','floatliteral','charliteral']:
 		return 0
 	elif ty == 'integerliteral':
-		kn = 256
+		kn = max_int_zantei
 		#print(v)
 		if type(v) is str:
 			v = eval(v)
@@ -497,12 +543,7 @@ def idx2leafdata(ty,idx):
 
 
 
-def nodetype2idx(ty):
-	#print(alltypes)
-	return alltypes.index(ty)
 
-def idx2nodetype(idx):
-	return alltypes[idx]
 
 import random
 
@@ -514,7 +555,7 @@ def alphaconv(data):
 			assert len(cs)==0
 			if not act in table[ty].keys():
 				while True:
-					r = random.randint(0,60)
+					r = random.randint(0,alphaconv_size-1)
 					if r in table[ty].values():
 						continue
 					table[ty][act] = r
@@ -552,14 +593,14 @@ def data2tystr(data):
 			args[k] = None
 		
 		cts = cfg_fortype[ty]
-		acs,_ = ast.get_alignmented_children()
+		acs = ast.aligned_children
 		#print(acs,cts)
 		assert len(acs)==len(cts)
 		for (nkata,kna),v in zip(cts,acs):
 			if type(nkata) is list and nkata[1]=='list':
 				args[kna] = list(map(treenize,v))
 			else:
-				args[kna] = treenize(v[0])
+				args[kna] = treenize(v)
 		
 		#print(ty,args)
 		return ty(**args)
@@ -567,7 +608,12 @@ def data2tystr(data):
 	ast = my_c_ast.nullast().load_astdata(data)	
 	tree = treenize(ast)
 	#print(tree)
-	restr = generator.visit(tree)
+	try:
+		restr = generator.visit(tree)
+	except AttributeError as e:
+		#print(e)
+		#code.interact(local={'tree':tree})
+		return 'TRUNCATED_TYPE'
 	#print('restr ::',restr)
 	return restr
 

@@ -11,7 +11,7 @@ from chainer import serializers
 
 from model_rnn import Seq2seq
 from model_rnn_with_att import Seq2seq_with_Att
-from model_seq2tree import Seq2Tree,ast2str,ast2token_seq
+from model_seq2tree import Seq2Tree
 
 
 def convert(batch, device):
@@ -103,9 +103,8 @@ def init_seq2seq():
 		for fr,to in ds:
 			result = model.translate([model.xp.array(fr)])[0]
 			result = list(result)
-			to = ast2token_seq(to)
-			result = normalize_sentense(csrc2ast.ast2token_seq(to))
-			to = normalize_sentense(csrc2ast.ast2token_seq(to))
+			result = normalize_sentense(result)
+			to = normalize_sentense(to)
 			ratio += 1.0 - edit_distance.SequenceMatcher(to,result).ratio()
 		#print(ratio)
 		ratio /= len(ds)
@@ -150,47 +149,55 @@ def init_seq2tree():
 	n_layer = 4
 	n_unit = 128
 	
-	n_maxlen = 100
+	n_maxdepth = 10
 	
 	with open('data_asm_ast.pickle','rb') as fp:
-			(data,asm_vocab) = pickle.load(fp)
+			(data,asm_vocab,c_syntax_arr) = pickle.load(fp)
 	
+	#print(data[0])
 	#data.data = list(filter(lambda xy: len(xy[0])<20 and len(xy[1])<10,data.data))
-	data = list(filter(lambda xy: len(xy[1])<n_maxlen,data))
+	#data = list(filter(lambda xy: len(xy[1])<n_maxsize,data))
 	data = data[:1000000]
 	print(len(data))
 	
 	lds = len(data)
-	train_data = data[:int(lds*0.8)]
-	test_data = data[int(lds*0.8):]
+	#train_data = data[:int(lds*0.8)]
+	#test_data = data[int(lds*0.8):]
+	train_data = data
+	test_data = data
+	#TODO(satos) sugu modosukoto.
 	
 	#source_ids = load_vocabulary(args.SOURCE_VOCAB)
 	#target_ids = load_vocabulary(args.TARGET_VOCAB)
 	maxlen_asm = max(map(lambda xy: len(xy[0]),data)) + 1
-	maxlen_c   = max(map(lambda xy: len(xy[1]),data)) + 1
-	print(maxlen_asm,maxlen_c)
+	maxsize_c  = max(map(lambda xy: xy[1],data)) + 1
+	print(maxlen_asm,maxsize_c)
 	
 	v_eos_src = len(asm_vocab)
 	asm_vocab += ['__EOS__']
 	src_vocab_len = len(asm_vocab)
  
-	model = Seq2Tree(n_layer, src_vocab_len, dst_vocab_len , n_unit, v_eos_src, v_eos_dst, n_maxlen)
+	model = Seq2Tree(n_layer, src_vocab_len, c_syntax_arr, n_unit, v_eos_src, n_maxdepth)
 	#serializers.load_npz('models/iter_5600_editdist_0.866712_time_2019_01_15_04_50_45.npz',model)
 	#serializers.load_npz('save_models/models_prestudy_edit_dist_0.65/iter_47600__edit_dist_0.691504__time_2018_12_28_01_36_30.npz',model)
 	
+	#print(train_data[0])
 	ddata  = list(map(lambda xy: np.array(xy[0],np.int32),train_data))
+	dlabel = list(map(lambda xy: xy[2],train_data))
 	dataset = list(zip(ddata,dlabel))
 	
-	def normalize_sentense(s):
+	def tree2normalizedsentense(tree,normalize=True):
+		s = csrc2ast.ast2token_seq(tree)
+		if not normalize:
+			return s
 		ts = []
 		names = []
-		for d in s:
-			sd = c_vocab[d]
-			if sd[:5]=='__ID_':
+		for sd in s:
+			if sd[:8]=='__ALPHA_':
 				if not sd in names:
 					names.append(sd)
-				d = -1-names.index(sd)
-			ts.append(d)
+				sd = '__NORMALIZED_%d' % names.index(sd)
+			ts.append(sd)
 		return ts
 	
 	logt = 0
@@ -198,16 +205,17 @@ def init_seq2tree():
 	def calcurate_edit_distance():
 		ratio = 0.0
 		ds = random.sample(test_data, 100)
-		for fr,to in ds:
+		for fr,_,to in ds:
 			result = model.translate([model.xp.array(fr)])[0]
-			result = list(result)
-			to = normalize_sentense(to)
-			result = normalize_sentense(result)
+			result = tree2normalizedsentense(result)
+			to = tree2normalizedsentense(to)
 			#print(to,result)
 			ratio += 1.0 - edit_distance.SequenceMatcher(to,result).ratio()
 		#print(ratio)
 		ratio /= len(ds)
 		return ratio
+	
+	train_iter_step = 100
 	
 	@chainer.training.make_extension()
 	def translate(trainer):
@@ -218,16 +226,15 @@ def init_seq2tree():
 		with open('log/iter_%s_editdist_%f_time_%s.txt' % (logt,eds,getstamp()),'w') as fp:
 			res = ""
 			for _ in range(10):
-				source, target = test_data[np.random.choice(len(test_data))]
+				source,_, target = test_data[np.random.choice(len(test_data))]
 				result = model.translate([model.xp.array(source)])[0]
 				
-				#target = normalize_sentense(target)
-				#result = normalize_sentense(result)
+				target = tree2normalizedsentense(target,normalize=False)
+				result = tree2normalizedsentense(result,normalize=False)
 				
-				#source_sentence = ' '.join([asm_vocab[x] for x in source])
-				source_sentence = ' '.join([str(x) for x in source])
-				target_sentence = ' '.join([c_vocab[y] for y in target])
-				result_sentence = ' '.join([c_vocab[y] for y in result])
+				source_sentence = ' '.join([asm_vocab[x] for x in source])
+				target_sentence = ' '.join(target)
+				result_sentence = ' '.join(result)
 				res += ('# source : ' + source_sentence) + "\n"
 				res += ('# expect : ' + target_sentence) + "\n"
 				#print('# result_array : ' + ' '.join(["%d" % y for y in result]))
@@ -246,6 +253,9 @@ def init_seq2tree():
 
 def main():
 	model,dataset,translate = init_seq2tree()
+	#for _ in range(10):
+	#	translate(None)
+	#exit()
 	
 	optimizer = chainer.optimizers.Adam()
 	optimizer.setup(model)
@@ -262,7 +272,6 @@ def main():
 		trigger=(1, 'iteration'))
 	
 	train_iter_step = 100
-		
 	trainer.extend(translate, trigger=(train_iter_step, 'iteration'))
 	trainer.run()
 

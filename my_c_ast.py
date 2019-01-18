@@ -26,11 +26,13 @@ class AST:
 			print(kv)
 		"""
 		print(sl.kind)
+		"""
 		t,b = sl.top,sl.bottom
 		print('source range:',t,b)
 		with open(sl.filename) as fp:
 			src = fp.readlines()[t-1:b]
 		print(' '.join(src))
+		"""
 		code.interact(local={'sl':sl,'x': x,'cs':(list(x.get_children()) if x is not None else None),'ah':ast_help})
 		exit()
 	
@@ -466,6 +468,9 @@ class AST:
 
 	def load_astdata_unit(sl,ty,ch):
 		cty,cidx,ccs = ch
+		if cidx<0:
+			return AST(('TRANCATE','TRANCATE'))
+		
 		#print(ty,ccs)
 		assert type(ty) is str
 		#if ty != 'type':
@@ -475,7 +480,7 @@ class AST:
 		elif ty in c_cfg.nont_reduce.keys():
 			tty = c_cfg.nont_reduce[ty][cidx]
 			addast = sl.nullast().load_astdata(ccs[0])
-			assert addast.kind == tty
+			#assert addast.kind == tty
 			res = addast
 		else:
 			assert len(ccs)==0
@@ -486,6 +491,9 @@ class AST:
 	def load_astdata(sl,data):
 		#print(data)
 		idx,mvnum,cs = data
+		if mvnum<0:
+			return AST(('TRANCATE','TRANCATE'))
+		
 		assert mvnum == 0
 		sl.invalid = False
 		sl.kind = c_cfg.idx2nodetype(idx)
@@ -506,43 +514,65 @@ class AST:
 				assert False
 		"""
 		tcs = []
+		aligned_tcs = []
 		for ch,ty in zip(cs,c_cfg.cfg[sl.kind]):
-			#print(ty,ch)
+			#print('chty',ty,ch)
 			if type(ty) is str:
-				tcs.append(sl.load_astdata_unit(ty,ch))
+				d = sl.load_astdata_unit(ty,ch)
+				tcs.append(d)
+				aligned_tcs.append(d)
 			else:
 				cty,cidx,ccs = ch
+				if cidx < 0:
+					tcs.append(AST(('TRANCATE','TRANCATE')))
+					aligned_tcs.append(AST(('TRANCATE','TRANCATE')))
+					continue
 				if ty[1]=='option':
 					if cidx==0:
 						assert len(ccs)==0
 						tcs.append(AST(('NULL','')))
+						aligned_tcs.append(AST(('NULL','')))
 					else:
 						assert len(ccs)==1
-						tcs.append(sl.load_astdata_unit(ty[0],ccs[0]))
+						v = sl.load_astdata_unit(ty[0],ccs[0])
+						tcs.append(v)
+						aligned_tcs.append(v)
 				elif ty[1]=='list':
-					while cidx != 0:
+					av = []
+					while cidx > 0:
 						assert len(ccs)==2
-						tcs.append(sl.load_astdata_unit(ty[0],ccs[0]))
+						d = sl.load_astdata_unit(ty[0],ccs[0])
+						tcs.append(d)
+						av.append(d)
 						cty,cidx,ccs = ccs[1]
-					assert len(ccs)==0
+					if cidx<0:
+						d = AST(('TRANCATE','TRANCATE'))
+						tcs.append(d)
+						av.append(d)
+					else:
+						assert len(ccs)==0
+					aligned_tcs.append(av)
 				else:
 					assert False
 		sl.children = tcs
+		sl.aligned_children = aligned_tcs
+		#print('check_aligned',aligned_tcs,c_cfg.cfg[sl.kind])
 		return sl
 	
 	def subexpr_line_list(sl):
 		#sl.debug()
 		#print(sl.kind,type(sl.kind))
-		if type(sl.kind) is str:
-			return []
-		if sl.kind.__module__ != 'clang.cindex':
+		if (not type(sl.kind) is str) and sl.kind.__module__ == 'pycparser.c_ast':
 			return []
 		res = []
 		for c in sl.children:
 			res += c.subexpr_line_list()
 		
-		if not sl in [CursorKind.COMPOUND_STMT]:
-			res.append(((sl.top,sl.bottom),sl.size,(c_cfg.rootidx,0,[sl.astdata])))
+		if (not type(sl.kind) is str) and (sl.kind.__module__ == 'clang.cindex') and (not sl.kind in [CursorKind.COMPOUND_STMT]):
+			#print(sl.kind,sl.kind.__module__)
+			ki = c_cfg.nodetype2idx(sl.kind)
+			idx = c_cfg.trans_array[c_cfg.rootidx].index([ki])
+			res.append(((sl.top,sl.bottom),sl.size,(c_cfg.rootidx,idx,[sl.astdata])))
 		return res
 	
 	
@@ -560,6 +590,7 @@ def nullast():
 def load_astdata(data):
 	idx,mvnum,cs = data
 	assert idx==c_cfg.rootidx and len(cs)==1
+	#print(cs[0][0])
 	return nullast().load_astdata(cs[0])
 
 

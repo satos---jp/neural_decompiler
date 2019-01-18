@@ -5,8 +5,7 @@ import chainer.functions as F
 from chainer import training
 from chainer.training import extensions
 from chainer import serializers
-
-
+import c_cfg
 	
 def sequence_embed(embed, xs):
 	x_len = [len(x) for x in xs]
@@ -56,23 +55,28 @@ class Attention(chainer.Chain):
 		self.Uhxs = None
 	
 class Seq2Tree(chainer.Chain):
-	def __init__(self, n_layers, n_source_vocab, children_types, n_units,v_eos_src,v_eos_dst,n_maxlen):
+	def __init__(self, n_layers, n_source_vocab, trans_data, n_units,v_eos_src,n_maxdepth):
 		super(Seq2Tree, self).__init__()
 
-		self.children_types = children_types
-		self.vs_target_vocab = [len(d) for d in self.children_types]
+		# for each nodetype, for each move, the result array.
+		self.trans_data = trans_data
 		self.embed_idx = []
 		ns = 0
-		for d in self.vs_target_vocab:
-			self.embed_idx.append([i+ns for i in range(d)])
-			ns += d
-		self.embed_y_size = ns
+		def inc():
+			nonlocal ns
+			ns += 1
+			return ns-1
+		self.embed_idx = [[[inc() for v in vs] for vs in moves] for moves in self.trans_data]
+		self.embed_root_idx = ns
+		self.embed_y_size = ns+1
 		
 		with self.init_scope():
 			self.embed_x = L.EmbedID(n_source_vocab, n_units)
 			self.embed_y = L.EmbedID(self.embed_y_size, n_units) # maybe mergable
-			for i,lv in enumerate(self.vs_target_vocab):
-				self.W[i] = L.Linear(n_units, lv)
+			self.W = [None for _ in self.trans_data]
+			for i,moves in enumerate(self.trans_data):
+				if len(moves)>1:
+					self.W[i] = L.Linear(n_units, len(moves))
 			
 			self.encoder = L.NStepBiLSTM(n_layers, n_units, n_units, 0.1)
 			self.decoder = L.NStepLSTM(n_layers, n_units*3, n_units, 0.1)
@@ -83,15 +87,15 @@ class Seq2Tree(chainer.Chain):
 		self.n_layers = n_layers
 		self.n_units = n_units
 		self.v_eos_src = v_eos_src
-		self.v_eos_dst = v_eos_dst
-		self.n_maxlen = n_maxlen
+		self.n_maxdepth = n_maxdepth
+		self.v_eos_dst = c_cfg.rootidx
 	
 	def forward(self, xs, ys):
-		#print(xs,ys)
+		#print(ys)
 		#exit()
 		#xs = [x[::-1] for x in xs]
 		
-		eos_dst = self.xp.array([self.v_eos_dst], np.int32)
+		#eos_dst = self.xp.array([self.v_eos_dst], np.int32)
 		#ys_in = [F.concat([eos_dst, y], axis=0) for y in ys]
 		#ys_out = [F.concat([y, eos_dst], axis=0) for y in ys]
 
@@ -111,53 +115,66 @@ class Seq2Tree(chainer.Chain):
 		cx = F.transpose(cx,axes=(1,0,2))
 		#print(batch,hx.shape,cx.shape,(batch,xs_states[0].shape))
 		
-		
-		concat_oss = []
-		concat_ys_outs = []
-		def rec_LSTM(node,ptype,ppos,(nhx,ncx)):
+		concat_oss = [[] for _ in self.trans_data]
+		concat_ys_outs = [[] for _ in self.trans_data]
+		def rec_LSTM(node,eidx,nhxncx):
+			(nhx,ncx) = nhxncx
 			ntype,nchoice,children = node
-			eidx = self.embed_idx[ptype][ppos]
-			ev = self.embed_y(np.array([eidx]))
+			#eidx = self.embed_idx[ntype][ppos]
+			ev = self.embed_y(np.array([eidx]))[0]
 			ctx = self.att(nhx)
 			tv = F.reshape(F.concat([ctx,ev],axis=0),(1,self.n_units * 3))
 			thx,tcx,nos = self.decoder(nhx,ncx,[tv])
+			nos = nos[0]
 			#wnos = self.W[ntype](nos)
 			
-			concat_oss[ntype].append(nos)
-			concat_ys_outs[ntype].append(nchoice)
+			if len(self.trans_data[ntype])>1:
+				concat_oss[ntype].append(nos)
+				concat_ys_outs[ntype].append(nchoice)
+			# otherwise, we don't have to train.
 			for i,ch in enumerate(children):
-				rec_LSTM(ch,ntype,i,(thx,tcx))
+				#print(ntype,nchoice,i)
+				teidx = self.embed_idx[ntype][nchoice][i]
+				rec_LSTM(ch,teidx,(thx,tcx))
 		
-		
-		for i,(y,hxs) in enumerate(zip(eys,xs_states)):
+		for i,(y,hxs) in enumerate(zip(ys,xs_states)):
 			nhx,ncx = hx[i],cx[i]
 			ncx = F.reshape(ncx,(ncx.shape[0],1,ncx.shape[1]))
 			nhx = F.reshape(nhx,(nhx.shape[0],1,nhx.shape[1]))
 			
 			assert y[0] == self.v_eos_dst
 			self.att.init_hxs(hxs)
-			rec_LSTM(y,0,0,(nhx,ncx))
+			ridx = self.embed_root_idx
+			rec_LSTM(y,ridx,(nhx,ncx))
 			self.att.reset()
 		
 		#loss = F.sum(F.softmax_cross_entropy(self.W(concat_os), concat_ys_out, reduce='no')) / batch
-		loss_s = [
-			F.softmax_cross_entropy(self.W[i](np.array(concat_os)), np.array(concat_ys_out), reduce='no')
-			for i,(concat_os,concat_ys_out) in enumerate(zip(concat_oss,concat_ys_outs))
-		]
 		
-		loss = F.sum(F.concat(loss_s))/ batch
+		loss_s = []
+		for i,(concat_os,concat_ys_out) in enumerate(zip(concat_oss,concat_ys_outs)):
+			assert len(concat_os) == len(concat_ys_out)
+			if len(concat_os)==0:
+				continue
+			#print(concat_os)
+			#print(concat_ys_out)
+			d = F.softmax_cross_entropy(self.W[i](F.concat(concat_os,axis=0)), np.array(concat_ys_out), reduce='no')
+			loss_s.append(d)
+		
+		#print(loss_s)
+		
+		loss = F.sum(F.concat(loss_s,axis=0))/ batch
 		
 		chainer.report({'loss': loss}, self)
-		n_words = concat_ys_out.shape[0]
-		perp = self.xp.exp(loss.array * batch / n_words)
-		chainer.report({'perp': perp}, self)
+		#n_words = concat_ys_out.shape[0]
+		#perp = self.xp.exp(loss.array * batch / n_words)
+		#chainer.report({'perp': perp}, self)
 		return loss
 	
 	def translate(self, xs):
 		EOS_DST = self.v_eos_dst
 		batch = len(xs)
 		
-		beam_with = 3
+		#beam_with = 3
 		with chainer.no_backprop_mode(), chainer.using_config('train', False):
 			
 			exs = sequence_embed(self.embed_x, xs)
@@ -167,38 +184,51 @@ class Seq2Tree(chainer.Chain):
 			hx = F.transpose(hx,axes=(1,0,2))
 			cx = F.transpose(cx,axes=(1,0,2))
 			
-			ivs = [self.embed_y(self.xp.full(1,i,np.int32))[0] for i in range(self.n_target_vocab)]
+			ivs = [self.embed_y(self.xp.full(1,i,np.int32))[0] for i in range(self.embed_y_size)]
 			v = ivs[EOS_DST]
 			
 			result = []
-			
-			def expand_tree(ntype,ptype,ppos,(nhx,ncx)):
-				eidx = self.embed_idx[ptype][ppos]
-				ev = self.embed_y(np.array([eidx]))
+
+
+
+			def expand_tree(ntype,eidx,nhxncx,ndepth=0):
+				(nhx,ncx) = nhxncx
+				if ndepth > self.n_maxdepth:
+					return (ntype,-1,[])
+				#eidx = self.embed_idx[ntype][ppos]
+				ev = self.embed_y(np.array([eidx]))[0]
 				ctx = self.att(nhx)
 				tv = F.reshape(F.concat([ctx,ev],axis=0),(1,self.n_units * 3))
 				thx,tcx,nos = self.decoder(nhx,ncx,[tv])
-				wy = self.W[ntype](nos)
+				nos = nos[0]
 				
-				#wy = F.reshape(F.log_softmax(F.reshape(wy,(1,self.vs_target_vocab[ntype])),axis=1),(self.vs_target_vocab[ntype],)).data
-				nchoice = F.argmax(wy.data).astype(np.int32)
+				if len(self.trans_data[ntype])>1:
+					wy = self.W[ntype](nos)
+					#wy = F.reshape(F.log_softmax(F.reshape(wy,(1,self.vs_target_vocab[ntype])),axis=1),(self.vs_target_vocab[ntype],)).data
+					nchoice = F.argmax(wy.data).data.astype(np.int32).item()
+				else:
+					nchoice = 0
 				
-				ctypes = self.children_types[ntype][nchoice]
+				#print(ntype,nchoice)
+				#print(c_cfg.idx2nodetype(ntype))
+				ctypes = self.trans_data[ntype][nchoice]
 				resv = []
 				for i,ct in enumerate(ctypes):
-					res.append(expand_tree(ct,ntype,i,(thx,tcx)))
+					teidx = self.embed_idx[ntype][nchoice][i]
+					resv.append(expand_tree(ct,teidx,(thx,tcx),ndepth+1))
 				return (ntype,nchoice,resv)
 			
 			for i,hxs in enumerate(xs_states):
 				nhx,ncx = hx[i],cx[i]
 				ncx = F.reshape(ncx,(ncx.shape[0],1,ncx.shape[1]))
 				nhx = F.reshape(nhx,(nhx.shape[0],1,nhx.shape[1]))
+		
 				self.att.init_hxs(hxs)
+				ridx = self.embed_root_idx
 				
 				# TODO(satos) What is the beam search for tree!?
 				# now, beam search is ommited.
-				
-				tree = expand_tree(self.v_eos_dst,0,0,(nhx,ncx))
+				tree = expand_tree(self.v_eos_dst,ridx,(nhx,ncx))
 				self.att.reset()
 				result.append(tree)
 			
