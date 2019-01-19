@@ -30,6 +30,7 @@ import edit_distance
 import random
 import pickle
 import csrc2ast
+import c_cfg
 
 
 
@@ -144,8 +145,9 @@ def init_seq2seq():
 	return (model,dataset,translate)
 
 
-
+train_iter_step = None
 def init_seq2tree():
+	global train_iter_step
 	n_layer = 4
 	n_unit = 128
 	
@@ -178,7 +180,7 @@ def init_seq2tree():
 	src_vocab_len = len(asm_vocab)
  
 	model = Seq2Tree(n_layer, src_vocab_len, c_syntax_arr, n_unit, v_eos_src, n_maxdepth)
-	#serializers.load_npz('models/iter_5600_editdist_0.866712_time_2019_01_15_04_50_45.npz',model)
+	serializers.load_npz('models/iter_200_time_2019_01_19_09_41_08.npz',model)
 	#serializers.load_npz('save_models/models_prestudy_edit_dist_0.65/iter_47600__edit_dist_0.691504__time_2018_12_28_01_36_30.npz',model)
 	
 	#print(train_data[0])
@@ -200,7 +202,7 @@ def init_seq2tree():
 			ts.append(sd)
 		return ts
 	
-	logt = 0
+	logt = 200
 	
 	def calcurate_edit_distance():
 		ratio = 0.0
@@ -219,29 +221,33 @@ def init_seq2tree():
 	
 	@chainer.training.make_extension()
 	def translate(trainer):
-		eds = calcurate_edit_distance()
-		print('edit distance:',eds)
 		nonlocal logt
 		logt += train_iter_step
-		with open('log/iter_%s_editdist_%f_time_%s.txt' % (logt,eds,getstamp()),'w') as fp:
-			res = ""
-			for _ in range(10):
-				source,_, target = test_data[np.random.choice(len(test_data))]
-				result = model.translate([model.xp.array(source)])[0]
+		serializers.save_npz('models/iter_%s_time_%s.npz' % (logt,getstamp()),model)
+		try:
+			eds = calcurate_edit_distance()
+			print('edit distance:',eds)
+			with open('log/iter_%s_editdist_%f_time_%s.txt' % (logt,eds,getstamp()),'w') as fp:
+				res = ""
+				for _ in range(10):
+					source,_, target = test_data[np.random.choice(len(test_data))]
+					result = model.translate([model.xp.array(source)])[0]
 				
-				target = tree2normalizedsentense(target,normalize=False)
-				result = tree2normalizedsentense(result,normalize=False)
+					target = tree2normalizedsentense(target,normalize=False)
+					result = tree2normalizedsentense(result,normalize=False)
 				
-				source_sentence = ' '.join([asm_vocab[x] for x in source])
-				target_sentence = ' '.join(target)
-				result_sentence = ' '.join(result)
-				res += ('# source : ' + source_sentence) + "\n"
-				res += ('# expect : ' + target_sentence) + "\n"
-				#print('# result_array : ' + ' '.join(["%d" % y for y in result]))
-				res += ('# result : ' + result_sentence) + "\n"
-			fp.write(res)
+					source_sentence = ' '.join([asm_vocab[x] for x in source])
+					target_sentence = ' '.join(target)
+					result_sentence = ' '.join(result)
+					res += ('# source : ' + source_sentence) + "\n"
+					res += ('# expect : ' + target_sentence) + "\n"
+					#print('# result_array : ' + ' '.join(["%d" % y for y in result]))
+					res += ('# result : ' + result_sentence) + "\n"
+				fp.write(res)
 		
-		serializers.save_npz('models/iter_%s_editdist_%f_time_%s.npz' % (logt,eds,getstamp()),model)
+			serializers.save_npz('models/iter_%s_editdist_%f_time_%s.npz' % (logt,eds,getstamp()),model)
+		except (c_cfg.Oteage,AssertionError,TypeError):
+			return
 		
 		#import code
 		#code.interact(local={'d':model.embed_x})
@@ -252,6 +258,7 @@ def init_seq2tree():
 
 
 def main():
+	global train_iter_step 
 	model,dataset,translate = init_seq2tree()
 	#for _ in range(10):
 	#	translate(None)
@@ -260,7 +267,7 @@ def main():
 	optimizer = chainer.optimizers.Adam()
 	optimizer.setup(model)
 	
-	train_iter = chainer.iterators.SerialIterator(dataset, 64)
+	train_iter = chainer.iterators.SerialIterator(dataset, 16)
 	updater = training.updaters.StandardUpdater(train_iter, optimizer,converter=convert)
 	trainer = training.Trainer(updater, (100000000, 'epoch'), out='result')
 
@@ -271,7 +278,6 @@ def main():
 		 'elapsed_time']),
 		trigger=(1, 'iteration'))
 	
-	train_iter_step = 100
 	trainer.extend(translate, trigger=(train_iter_step, 'iteration'))
 	trainer.run()
 

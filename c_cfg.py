@@ -407,7 +407,8 @@ shortleavs = {
 	'NULL': [''],
 	'tyspec': [
 		'double', 'float',  'int', 'long', 'const', 'static', 'register',
-		'signed', 'unsigned',  'restrict',  'extern',  'short', 'void', 'volatile', 'char','inline'
+		'signed', 'unsigned',  'restrict',  'extern',  'short', 'void', 'volatile', 'char','inline',
+		'_Bool','__int128','_Complex',
 	],
 }
 
@@ -508,6 +509,8 @@ def leafdata2idx(ty,v):
 		if type(v) is str:
 			v = eval(v)
 		#print(v,type(v))
+		if v < 0:
+			raise Oteage
 		assert v>=0
 		if v<kn:
 			return v
