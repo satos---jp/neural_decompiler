@@ -261,7 +261,7 @@ When the token $sy_{m+1}$ is the $ EOS $ token, generating process is stopped an
 % (TODO) このへんで 図を入れる
 % (TODO) 理由/気持ち について述べたいですね。
 
-
+For 
 
 
 % (TODO) BiLSTMとmulti-layerについてさらっと
@@ -310,8 +310,9 @@ But in our case, we don't need copy the information from the input, because the 
 
 
 \subsubsection{Our Model}
-Our model tries to exploit the intuitive that the each node of the tree is basically independent from its sibling.
-
+Our model tries to exploit the intuitive that each node of the tree is basically independent from its sibling.
+This intuition is not true when the compiler optimizes the assembler. 
+However  
 
 
 
@@ -361,6 +362,7 @@ The C fragment and assembly code pairs are preprocessed for the training and tes
 In order to apply LSTM, input and output for the LSTM must be the sequence of tokens. 
 So we have to preprocess the assembly data and C fragments to the token sequences by somehow.
 
+\subsection{Assembly Code Preprocess}
 The assemblies were preprocessed in two ways.
 First way is the raw binary integers. The assemblies are finally assembled to the sequence of the one byte integers, ranged from 0 to 255.
 So the one byte integer sequences can be directly used for input sequences.
@@ -376,22 +378,52 @@ In detail, the integer in the range from -255 to 256 are preserved as it is, and
 This also reduces the vocabulary size.
 \end{itemize}
 
-The C source codes were preprocessed like the second way of the assembly preprosess.
-C source code was tokenized to the sequence and preprocessed with following modifications.
+
+\subsection{C Code Preprocess}
+The C source codes were parsed to AST by the \cite{clang} and its Python bindings together with \cite{pycparser}, 
+because all of the tools are individualy not sufficient for generating dataset.
+Then, the AST is converted to input data by following modifications.
+
 \begin{itemize}
-\item Function names and variable names were renamed like $\alpha$-conversion.
-\item Big integer values were substituted too. 
-\item All string literals were replaced to the {\sl \_\_STRING\_\_} symbol.
+\item The variable-ary nodes and optional nodes are converted. 
+For example, the {\sl CompoundStatement} node has variable number of statements. 
+We converted such list of nodes to the chains of concatnation and terminal, like a list representation in functional language.
+Another example is the  {\sl If} statement, whose {\sl else} clausure are sometimes missing. 
+We converted such optional node to the alternative of some node and Null node, like a optional data structure in functional language.
+\item The variable names, function names, label names, or type names were renamed like $\alpha$-conversion.
+\item There are four type of literals in C language. 
+The integer literal less than 256 is preserved, and the literal greater than 256 is clipped to 256.
+The string, float and character literals are converted to {\sl \_\_LITERAL\_(string|float|char)\_\_} simbol.
+
+Modifying the node to indicate the value in the assembly code corresponding to the literal is also conceibable way,
+but we couldn't implement this because of its technical difficalty, so this is left to future work.
 \end{itemize}
 
-% (TODO)木状にする方法について述べる。
+The AST is used for Seq2Tree model dataset as it is.
+Also, the AST is converted to C token sequence for Seq2Seq model dataset. 
 
 
 \section{Model Configuration}
-The training model was implemented with Chainer.
+The training model was implemented with Chainer. Source codes are avaiable at \url{}.
+
+
 (TODO)レイヤ数、ロスについてのべる。
 
+\section{Training and Testing}
+
+We trained the model to reduce the cross-entropy loss between predicted and actual conditional probability.
+The conditional probability is the probability of next token $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ for Seq2Seq model, 
+and the probability of next action $p(a_{k+1}|sx,[a_1, \dots a_{k}]) $ for Seq2Tree model.
+
+We calculated the accuracy with the edit distance ratio between ground truth and output source code from the model.
+Here, the edit distance ratio between two strings means the Levenshtein distance divided by the longer length of the strings.
+For the Seq2Seq model, the distance is 
+
 \chapter{Results}
+
+We tested our methods for 
+
+
 (TODO)seq2seq、アテンション付きseq2seq、seq2treeとバイナリそのまま/逆アセンブル後 の6パターンのデータを出す。
 \chapter{Discussion}
 \chapter{Conclusion}

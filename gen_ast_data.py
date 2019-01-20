@@ -6,6 +6,15 @@ class InvalidToken(Exception):
 data = []
 vocab_src = set([])
 vocab_dst = set([])
+
+import pickle
+with open('dataset_asm_ast/vocab_asm.pickle','rb') as fp:
+	vocab_dst = pickle.load(fp)
+
+import c_cfg
+with open('dataset_asm_ast/c_trans_array.pickle','wb') as fp:
+	pickle.dump(c_cfg.trans_array,fp)
+
 types = set([])
 
 x64_opcodes_registers = [
@@ -19,7 +28,7 @@ import random
 import asm_objd_conv
 import csrc2ast
 import my_c_ast
-import c_cfg
+
 
 def getsub(fn,s):
 	if fn[-len(s):]==s:
@@ -31,10 +40,37 @@ os.chdir('./build_ast_save_csrc')
 srcs = list(filter(lambda x: x is not None,map(lambda x: getsub(x,'.objd'),os.listdir('.'))))
 #srcs = ['cat']
 
+
+	
 len_srcs = len(srcs)
 idx_srcs = 0
 
+file_start_num = 0
 file_num_sum = 0
+data_set_num = 0
+
+
+def dump_save_data():
+	global data,vocab_dst,file_start_num,file_num_sum,data_set_num
+	data = list(map(lambda xy: (
+						list(map(lambda t: vocab_dst.index(t),xy[0])),
+						xy[1],
+						xy[2]
+				),data))
+	dfn = file_num_sum - file_start_num 
+	dls = len(data)
+	print('save idx:',data_set_num)
+	print('file num diff:',dfn)
+	print('data length:',dls)
+	
+	import pickle
+	with open('../dataset_asm_ast/data_%d.pickle' % data_set_num,'wb') as fp:
+		pickle.dump((dfn,data),fp)
+	
+	file_start_num = file_num_sum
+	data_set_num += 1
+	data = []
+
 for fn in srcs:
 	print(fn)
 	idx_srcs += 1
@@ -63,10 +99,7 @@ for fn in srcs:
 		print('too long',fn)
 		continue
 	
-	try:
-		astdata = csrc2ast.src2ast(fn + '.tokenized.c',fn + '.parsed').subexpr_line_list()
-	except c_cfg.Oteage:
-		continue
+
 
 	nibeki = [1<<(i*8) for i in range(8)]
 	def asm_trim(v):
@@ -83,25 +116,29 @@ for fn in srcs:
 		else:
 			print('unknown asm token:',v,'in file',fn)
 		raise InvalidToken
-			
-				
 	
 	LABEL_MAX = 60
 	try:
 		ds = list(map(lambda i_d: (i_d[0],list(map(asm_trim,i_d[1]))),ds))
 	except InvalidToken:
 		continue
+	"""
 	for _,d in ds:
 		vocab_dst |= set(filter(lambda x: x[:6] != 'LABEL_',d))
 	vocab_dst |= set(['LA_%d' % i for i in range(LABEL_MAX+1)])
 	vocab_dst |= set(['NEW_LINE'])
 	maxlavellen = 0
 	print(fn)
+	continue
+	"""
 	
-	
+	try:
+		astdata = csrc2ast.src2ast(fn + '.tokenized.c',fn + '.parsed').subexpr_line_list()
+	except c_cfg.Oteage:
+		continue
 	
 	for (a,b),nsize,tree in astdata:
-		if b-a > 100:
+		if b-a > 200:
 			continue # too big.
 		#print(tree)
 		"""
@@ -150,29 +187,25 @@ for fn in srcs:
 			pass
 
 	file_num_sum += 1
+	
+	dml = 1000000
+	if len(data)>=dml:
+		mdata = data[dml:]
+		data = data[:dml]
+		dump_save_data()
+		data = mdata
+
+dump_save_data()
 
 
-
-
+"""
 vocab_dst = list(vocab_dst)
 sys.stderr.write("vocab_dst_len: %d\n" % len(vocab_dst))
 
-
-data = list(map(lambda xy: (
-					list(map(lambda t: vocab_dst.index(t),xy[0])),
-					xy[1],
-					xy[2]
-				),data))
-
-c_vocab_arr = c_cfg.trans_array
-
-
-print('file num sum:',file_num_sum)
-print('data length:',len(data))
-
 import pickle
-with open('../data_asm_ast_bigsize.pickle','wb') as fp:
-	pickle.dump((data,vocab_dst,c_vocab_arr),fp)
+with open('../dataset_asm_ast/vocab_asm.pickle','wb') as fp:
+	pickle.dump(vocab_dst,fp)
+"""
 
 #print(os.system('pwd'))
 def show_data():

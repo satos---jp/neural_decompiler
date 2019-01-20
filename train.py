@@ -145,29 +145,41 @@ def init_seq2seq():
 	return (model,dataset,translate)
 
 
+def load_dataset():
+	"""
+	with open('dataset_asm_ast/c_trans_array.pickle','rb') as fp:
+		c_syntax_arr = pickle.load(fp)
+	with open('dataset_asm_ast/vocab_asm.pickle','rb') as fp:
+		asm_vocab = pickle.load(fp)
+	data = []
+	for i in range(13):
+		with open('dataset_asm_ast/data_%d.pickle' % i,'rb') as fp:
+			data += pickle.load(fp)
+	"""
+	with open('sampled_asm_ast_dataset.picikle','rb') as fp:
+		res =  pickle.load(fp)
+	return res
+	
 train_iter_step = None
 def init_seq2tree():
 	global train_iter_step
 	n_layer = 4
 	n_unit = 128
 	
-	n_maxdepth = 10
+	n_maxdepth = 20
 	
-	with open('data_asm_ast.pickle','rb') as fp:
-			(data,asm_vocab,c_syntax_arr) = pickle.load(fp)
+	(data,asm_vocab,c_syntax_arr) = load_dataset()
+	print('load dataset')
 	
 	#print(data[0])
 	#data.data = list(filter(lambda xy: len(xy[0])<20 and len(xy[1])<10,data.data))
 	#data = list(filter(lambda xy: len(xy[1])<n_maxsize,data))
-	data = data[:1000000]
+	#data = data[:1000000]
 	print(len(data))
 	
 	lds = len(data)
-	#train_data = data[:int(lds*0.8)]
-	#test_data = data[int(lds*0.8):]
-	train_data = data
-	test_data = data
-	#TODO(satos) sugu modosukoto.
+	train_data = data[:int(lds*0.8)]
+	test_data = data[int(lds*0.8):]
 	
 	#source_ids = load_vocabulary(args.SOURCE_VOCAB)
 	#target_ids = load_vocabulary(args.TARGET_VOCAB)
@@ -180,7 +192,7 @@ def init_seq2tree():
 	src_vocab_len = len(asm_vocab)
  
 	model = Seq2Tree(n_layer, src_vocab_len, c_syntax_arr, n_unit, v_eos_src, n_maxdepth)
-	serializers.load_npz('models/iter_200_time_2019_01_19_09_41_08.npz',model)
+	#serializers.load_npz('models/iter_200_time_2019_01_19_09_41_08.npz',model)
 	#serializers.load_npz('save_models/models_prestudy_edit_dist_0.65/iter_47600__edit_dist_0.691504__time_2018_12_28_01_36_30.npz',model)
 	
 	#print(train_data[0])

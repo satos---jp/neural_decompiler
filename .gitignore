@@ -36,3 +36,6 @@ build_ast/
 build_ast_save_csrc/
 texs/paper.tex
 texs/abstract.tex
+!texs/bintree.c
+!texs/hopper.c
+!texs/snowman.c
