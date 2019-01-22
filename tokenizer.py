@@ -16,6 +16,8 @@ def tokenize(fn):
 			#print(cs)
 			cs = "'".join(cs.split("'")[1:-1])
 			ts.append(cs)
+		
+		ts = list(filter(lambda x: x!='',ts))
 		return ts
 	else:
 		return None	

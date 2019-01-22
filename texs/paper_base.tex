@@ -18,6 +18,7 @@ __NAMES__
 \usepackage{listings}
 \usepackage{cite}
 \usepackage{url}
+\usepackage{natbib}
 
 \lstdefinestyle{myCustomMatlabStyle}{
   language=C,
@@ -55,9 +56,11 @@ __NAMES__
 \begin{eabstract}
 A decompiler is a tool for recovering a source code from compiled binary data.
 There are various decompilers, but they often output a source code that is not intelligible to humans. 
-In this thesis, we tried to apply machine translation techniques to generate human intelligible decompiled source codes. 
-More specifically, we propose to use recurrent neural networks with attention, which are useful for machine translation. 
+In this thesis, we apply machine translation techniques to generate human intelligible decompiled source codes. 
+More specifically, we propose to use recurrent neural networks with attention, 
+which have been demonstrated to be useful for machine translation. 
 In experiments, we use source codes collected from open source projects and their binary data for training and evaluating the neural networks.
+(TODO)実験結果について述べること(まだ未確定)
 \end{eabstract}
 \begin{jabstract}
 逆コンパイラはコンパイル後のバイナリデータからソースコードを復元するためのツールである。
@@ -75,65 +78,83 @@ In experiments, we use source codes collected from open source projects and thei
 % In the static analysys, the behavior of the malware is analyzed by 
 
 These days, the amount of malware has been increasing rapidly.
-So the importance to develop malware analysis tools has been rising.
 
-One of these tools is a decompiler, which is a tool for analyzing the behavior of malwares. 
-This tool generates C-like pseudocode which represents the behavior of the malware, and analyst can infer the behavior of the malware from the pseudocode.
-This is much easier compare to analyzing raw binary. 
+要参考文献
+So the importance of developing malware analysis tools has been rising.
+要参考文献
+One of these tools is a decompiler, which is a tool for analyzing the behavior of malware. 
+This tool generates a C-like pseudocode which represents the behavior of the malware, and analysts can infer the behavior of the malware from the pseudocode.
+This is much easier compared to analyzing raw binary codes.
 
-However, sometimes a decompiler generate unstructured code, which requires users to make an effort to understand the behavior of the program. 
-This is due to flexibility of the high level language. If the decompiler chooses a human-friendly representation of the language as the result of decompiling, we can analyze malware with less effort. 
+However, sometimes a decompiler generates an unstructured code, which requires users to make an effort to understand the behavior of the program. 
+This is due to flexibility of the high level language. If the decompiler chooses a human-friendly representation of the language as a result of decompiling, we can analyze malware with less effort. 
 
-In this paper, we apply neural networks to a decompiler to generate human-friendly pseudocode. 
-This idea is originated from \cite{Motoneta}, in which they use Recurrent Neural Networks.
+In this thesis, we apply neural networks to the problem of decompilation to generate human-friendly pseudocodes. 
+This idea is originated from \cite{Motoneta}, in which they used recurrent neural networks.
+They used sequence-to-sequence model, which ignores the structure of the C language code. 
+Therefore, we implemented sequence-to-tree model, which is suggested in \cite{Seq2Tree}, for generating structured C language source code 
+結果が向上していれば(and improving the decompilation accuracy.)といいたい。
 
+従来法の何が悪いのかを説明する．たぶんした。
 (TODO)このあとに今回やる更に具体的な内容とその成果についてが入る。
 
 \section{Related Works}
+In this section, we review related works.
+
 \subsection{Decompilation with Machine Learning}
+
 Because perfect decompilation is naturally impossible, there are many machine learning applications for decompilation.
 
-% The idea of applying LSTM to decompilation is originated from \cite{Motoneta}. 
-
+In \cite{Motoneta}, they used the seqence-to-sequence approach, which is a popular technique in the machine translation.
 
 In \cite{genetic_decompiler}, they applied genetic programming to decompilation.
+They prepared big corpus of C source codes, and they repeatedly mutated C code to reduce the difference of the target binary and the compilation result of the source code. 
 
-(TODO)更にいろいろ説明する(手法をどこまで書くか)
+
 
 % Compiler and Optimization Level Estimation for Improving Anti-malware Technologies
 
 % 
 
 \subsection{Improvement of decompilation results}
-In this paper, we don't try to recover the function name and variable name. 
+In this section, we do not try to recover the function name and variable name. 
 However, for hand-decompilation, sometimes the name can be estimated by the functionality of the variable.
+要参考文献
 For example, assume there is a variable X which seems to have a C struct type and has two fields P and Q.
-And there are two functions F and G which operate with X. 
-The function F receives X and other value V, assigns V to the memory indicated by P, adds 8 to P and increments Q. 
-The function G receives X, subs 8 from P and decrements Q, then returns the value indicated by P.
-In the situation, analyst can estimate X has a name related to {\sl stuck}, and the function F has a name related to {\sl push}, G has a name related to {\sl pop}.
+Also, there are two functions F and G which operate with X. 
+The function F receives X and another value V, assigns V to the memory indicated by P, adds 8 to P and increases Q. 
+The function G receives X, subtracts 8 from P, decreases Q, and returns the value indicated by P.
+In the situation, is is estimated that X has a name related to {\sl stuck}, the function F has a name related to {\sl push},
+ands G has a name related to {\sl pop}.
 
-\cite{name_recover_from_decompile_result} is the paper for tackling this task. 
-In this paper, they try to estimate the name of a variable which appears in the decompilation result of a compiled C program.
+\cite{name_recover_from_decompile_result} tackled this work. 
+In that paper, they tried to estimate the name of a variable which appears in the decompilation result of a compiled C program.
 
 This kind of name estimation also appears in the context of deobfuscation.
+要参考文献
 Deobfuscation is a reverse process of obfuscation.
 Obfuscation is a technique to modify the program source code so that the code becomes hard to understand for humans. 
-Obfuscation is used for hiding the behavior of a program whose source code have to be distributed.
-For example, on the web application, the JavaScript code of the program should be distributed in order to be executed on client web browsers.
-To protect the program from cracking, the JavaScript code are sometimes minified. All comments, newlines, indents are removed and the 
-variable names are substituted to automatically generated meaningless name.
+Obfuscation is used for hiding the behavior of a program whose source code has to be distributed.
+For example, in the web application, a JavaScript code of a program should be distributed in order to be executed on client web browsers.
+To protect the program from cracking, the JavaScript code is sometimes minified. All comments, newlines, indents are removed and variable names are substituted to automatically generated meaningless names.
 
-\cite{JSNaughty} apply statistical machine translation for this task. 
+\cite{JSNaughty} applied statistical machine translation for this task. 
+They calculated estimated the name of the variable by the functionality of it
 
-\subsection{Neural Networks for Program Synthesis}
+\subsection{Neural Network for Program Generation}
 
-There are so many applications of neural networks for program synthesis. They are summurized in \cite{deep_programming_matome}.
+There are many applications of neural networks for program synthesis. They are summurized in \cite{deep_programming_matome}.
 
-(TODO)最低限Seq2Treeについては触れる。更にいろいろ。
+In this thesis, we applied seq-to-tree model suggested in \cite{Seq2Tree}, because the input of the decompiler is the sequence of machine codes.
+
+For another example, in \cite{coffeescript_to_javascript}, they tried to mutually translate from JavaScript to CoffeeScript, and its inverse.
+In that case, both JavaScript codes and CoffeeScript codes are tree structured, so they suggested tree-to-tree model.
+
 
 \chapter{Problem Settings and Methots}
 
+In this chapter, we explain about the statistical formalization of the decompilation problem,
+and the neural network models used in the experiment.
 \section{Decompiler}
 
 % 320 words.
@@ -225,71 +246,90 @@ Roughly speaking, LSTM unit recieves two input vectors,
 the one represents the internal state of the LSTM, and the other is the input for the LSTM unit, 
 and LSTM emits one output vectors, which represents the next internal state of the LSTM.
 
-\subsection{Seq2Seq}
+\subsection{Seq-to-Seq}
 % This model is called seq2seq (sequence to seqence) model.
 
 % 477 words.
-LSTM unit is applied for SMT task in \cite{seq2seq}, as the essential unit of the seq2seq (sequence to sequence) model.
+LSTM unit is applied for SMT task in \cite{seq2seq}, as the essential unit of the seq-to-seq (sequence to sequence) model.
 SMT is the task which tries to translate one sentense $sx$ written in one language into the sentense $sy$ written in another language.
 
-Seq2seq model is composed of two modules, the encoder netwrok and the decoder network.
+Seq-to-seq model is composed of two modules, the encoder netwrok and the decoder network.
 
 The purpose of the encoder network is to summerize the input sequence $sx$, whose length varies depending on the sequence, into one fixed length vector.
 This process is carried out as follows. 
-First, $sx$ is tokenized to sequence $sx_{1} \dots sx_{n}$, and each token $sx_{k}$ is embedded to vector representation $vx_{k}$. 
+First, $sx$ is tokenized to sequence $sx_{1} \dots sx_{n}$, and each token $sx_{k}$ is embedded to its vector representation $vx_{k}$. 
 Then, the initial LSTM internal state $enc_0$ is intialized randomely, 
-and for each vector $vx_{k}$ and internal state $s{k-1}$, next internal state $enc_{k}$ is calculated as $ LSTM_{enc}(enc_{k-1},vx_{k}) $.
+and $ enc_{1} \dots enc_{n} $ are calculated in accordance with the recursive formula $ enc_{k} = lstm_{enc}(enc_{k-1},vx_{k}) $.
 Finally, the last internal state $ enc_{n}$ is returned as the reduced representation of the input sequence $sx$.
 
 The purpose of the decoder network is to estimate the distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $. 
 The training process is carried out as follows. 
-First, $sy$ is tokenized and appended token $ EOS $ for indicating the end of the sequence, then embedded to vector representation $vy_{1} \dots vy_{m}$ in the same way as $sx$.
-And from the start vector $y_begin$ and encoded input $ enc_{n} $, first internal state $ dec_{1}$ is calcuated as $ LSTM_{dec}(enc_{n},y_begin) $.
-Then, with for all vector $vy_{k}$, $dec_{k+1}$ is calculated as $ LSTM_{dec}(dec_{k},vy_{k}) $.
-Each decoder internal state $ dec_{k} $ is passed to the linear layer $ W_dec $ then softmaxed to generate a probability vector $ py_{k} $.
+First, $sy$ is tokenized, appended the token $ EOS $ for indicating the end of the sequence, then embedded to a vector representation $vy_{1} \dots vy_{m}$ in the same way as embedding $sx$.
+From the start vector $y_{begin}$ and encoded input $ enc_{n} $, first internal state $ dec_{1}$ is calcuated as $ LSTM_{dec}(enc_{n},y_{begin}) $.
+Then, $ dec_{1} \dots dec_{m} $ are calculated in accordance with the recursive formula $ dec_{k} = lstm_{dec}(dec_{k-1},vy_{k}) $.
+Each decoder internal state $ dec_{k} $ is passed to the linear layer $ W_{dec} $ and then softmaxed to generate a probability vector $ py_{k} $.
 The probability vector $ py_{k} $ is intended to represent the probability distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
 So the network is trained to reduce the difference between predicted distribution $ py_{k} $ and actual distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
 In the experiment, we choiced cross-entropy of $ py_{k} $ and $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ for loss function.
 
-The inference is obteining $ \argmax_{sy} p(sy|sx) = \argmax_{sy} \prod_{k=1}^n p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
+The inference for sequence $sx$ is carried out by calculating 
+$ \argmax_{sy} p(sy|sx) = \argmax_{sy} \prod_{k=1}^n p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
 Calculating argmax directly is time consuming, so we have to approximate the argmax by calculating $sy = [sy_1, \dots sy_m]$ sequentially.
 First, $sy_1$ is calculated as $ \argmax_{sy_1} p(sy_1|sx,[]) $, where distribution $ p(sy_1|sx,[]) $ is approximated by 
-$ softmax(W_dec(dec_{1})) = softmax(W_dec(LSTM_{dec}(enc_{n},y_begin))) $. 
+$ softmax(W_{dec}(dec_{1}))$. 
 Then, the next token $sy_2 = \argmax_{sy_1} p(sy_2|sx,[sy_2]) $ is calculated from $ dec_{1} $ and the vector embedding of $sy_1$, and so on.
 When the token $sy_{m+1}$ is the $ EOS $ token, generating process is stopped and the sequence $ [sy_1, \dots sy_m]$ is returned as the inference result.
 
 % (TODO) このへんで 図を入れる
 % (TODO) 理由/気持ち について述べたいですね。
 
-For 
 
 
 % (TODO) BiLSTMとmulti-layerについてさらっと
 
 
 \subsection{Attention}
-Attention is a extension module of Seq2Seq model to improve the quality of translation. 
+Attention is a extension module of seq-to-seq model to improve the quality of translation. 
+Simple seq-to-seq model has a problem that the length of the encoded vector $enc_{n}$ is fixed 
+regardless of the length of the input sequence $sx$. 
+Therefore, the longer the length of the input becomes, the more likely the information of the input will be lost.
+This problem is eased by using the information in the encoding network when decoding the output sequence.
+
+The attention module is first developed in \cite{attention_paper}.
+However, the attention 
+We inplemented the global general attention, which is intoduced in \cite{dot_attention}, for improving the quality of decompilation.
+In this subsection, we will describe about the global general attention.
 
 
 
-\subsection{Seq2Tree}
+After generating $ dec_{k} $, the context vector $ c_{k} $ is calculated from the hidden states $ enc_{1} \dots enc_{n} $.
+
+$ c_{k} = \sum_{k=1}^{n} $ 
+
+The attentional hidden state $ dec'_{k} $ is calculated from the $ dec_{k} $ and $ c_{k} $.
+Then, the probability $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ is estimated as $ softmax(W_{dec}(dec'_{k}))$, instead of $ softmax(W_{dec}(dec_{k}))$.
+
+
+
+
+\subsection{Seq-to-Tree}
 % 184 words
 Compare to natural languages, programming languages obeys rigid grammer, wich is usually context free grammer,  
 and it is reasonable to consider the grammer of the programming language in generating programs.
-Seq2Tree is a model for generating tree-structured output from sequence input. This model is introduced in \cite{Seq2Tree} for generating programs from the program specification written in natural languages. 
+Seq-to-Tree is a model for generating tree-structured output from sequence input. This model is introduced in \cite{Seq2Tree} for generating programs from the program specification written in natural languages. 
 This task is similer to our task, which aims to generate programs from the sequence of the assembly code, so we implemented this model in the experiment.
 
-Now, we will describe about the Seq2Tree model.
-Seq2Tree model is composed of two modules, the encoder netwrok and the decoder network.
-The encoder network of Seq2Tree model is the same as the encoder network of Seq2Seq model. It summerize the input sequence into one fixed length vector.
+Now, we will describe about the seq-2-tree model.
+seq-2-tree model is composed of two modules, the encoder netwrok and the decoder network.
+The encoder network of seq-2-tree model is the same as the encoder network of seq-2-tree model. It summerize the input sequence into one fixed length vector.
 
 The decoder network is a network for generating tree structured output. 
-In this paper, our implemented model is different from the model in \cite{Seq2Tree}. 
+In this paper, our implemented model is based on model in \cite{Seq2Tree}. 
 So first, we briefly describe the model implemented in the paper, and then, we describe our model.
 
 \subsubsection{Previous Model}
 % 312 words
-In algorithmic parspective, the inference of the Seq2Seq model tries to generate sequence one by one, from the first token to the last.
+In algorithmic parspective, the inference of the seq2seq model tries to generate sequence one by one, from the first token to the last.
 % The Seq2Tree model also tries to generate tree structure one by one, with depth-first order.
 The inference of the SeqTree model starts from the start symbol, and recursively expand the nonterminal symbols in depth-first order.
 
@@ -297,7 +337,7 @@ The tree-structure is representable by the sequence of the actions which expands
 Suppose the tree $ty$ is generated by the action sequence $ [a_1, \dots a_m] $, 
 where $ a_k $ is the action which expands left-most symbol of the nonterminal symbol in the tree generated by the action sequence $ [a_1, \dots a_{k-1}] $. 
 Then, the tree-generating probability $ p(ty|sx) $ is decomposed to $ \prod_{k=1}^n p(a_k|sx,[a_1, \dots a_{k-1}]) $, 
-so the Seq2Seq model is now applicable for generating tree structure, by emmbeding each action to representing vector $av_k$ and 
+so the seq-2-seq model is now applicable for generating tree structure, by emmbeding each action to representing vector $av_k$ and 
 calculating $ LSTM_{dec}(dec_{k},av_{k}) $ for estimating $p(a_{k+1}|sx,[a_1, \dots a_{k}]) $.  
 
 In the paper, they additionaly tries to use the information which is peculiar to the tree structure. 
@@ -310,9 +350,13 @@ But in our case, we don't need copy the information from the input, because the 
 
 
 \subsubsection{Our Model}
+
+Calculating context With 
+We changed previous model 
+
 Our model tries to exploit the intuitive that each node of the tree is basically independent from its sibling.
 This intuition is not true when the compiler optimizes the assembler. 
-However  
+However, in this paper, we tested the 
 
 
 
@@ -323,6 +367,8 @@ However
 
 
 \chapter{Experiments}
+In this chapter, we explain the detail of the data preparetion and implementation.
+The implementation source codes are avaiable at \url{https://github.com/satos---jp/neural_decompiler}.  
 
 \section{Data Collection}
 % 219 words
@@ -358,11 +404,12 @@ The C fragment and assembly code pairs are preprocessed for the training and tes
 
 \section{Data Preprocessing}
 
-% 244 words
+% 34 words
 In order to apply LSTM, input and output for the LSTM must be the sequence of tokens. 
 So we have to preprocess the assembly data and C fragments to the token sequences by somehow.
 
 \subsection{Assembly Code Preprocess}
+% 155 words
 The assemblies were preprocessed in two ways.
 First way is the raw binary integers. The assemblies are finally assembled to the sequence of the one byte integers, ranged from 0 to 255.
 So the one byte integer sequences can be directly used for input sequences.
@@ -380,6 +427,7 @@ This also reduces the vocabulary size.
 
 
 \subsection{C Code Preprocess}
+% 232 words
 The C source codes were parsed to AST by the \cite{clang} and its Python bindings together with \cite{pycparser}, 
 because all of the tools are individualy not sufficient for generating dataset.
 Then, the AST is converted to input data by following modifications.
@@ -399,8 +447,8 @@ Modifying the node to indicate the value in the assembly code corresponding to t
 but we couldn't implement this because of its technical difficalty, so this is left to future work.
 \end{itemize}
 
-The AST is used for Seq2Tree model dataset as it is.
-Also, the AST is converted to C token sequence for Seq2Seq model dataset. 
+The AST is used for sequence-to-Tree model dataset as it is.
+Also, the AST is converted to C token sequence for sequence-to-sequence model dataset. 
 
 
 \section{Model Configuration}
@@ -410,14 +458,19 @@ The training model was implemented with Chainer. Source codes are avaiable at \u
 (TODO)レイヤ数、ロスについてのべる。
 
 \section{Training and Testing}
-
+% 91 words
 We trained the model to reduce the cross-entropy loss between predicted and actual conditional probability.
-The conditional probability is the probability of next token $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ for Seq2Seq model, 
-and the probability of next action $p(a_{k+1}|sx,[a_1, \dots a_{k}]) $ for Seq2Tree model.
+The conditional probability is the probability of next token $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ for sequence-to-sequence model, 
+and the probability of next action $p(a_{k+1}|sx,[a_1, \dots a_{k}]) $ for sequence-to-tree model.
 
-We calculated the accuracy with the edit distance ratio between ground truth and output source code from the model.
+We calculated the quality of the decompilation by two metrics, edit distance ratio and BLEU.
+
+Edit distance ratio is the metrics for the correctness of the decompilation result.
 Here, the edit distance ratio between two strings means the Levenshtein distance divided by the longer length of the strings.
-For the Seq2Seq model, the distance is 
+Idealy, the correctness of the decompilation result should be measured by the distance of the meaning of the program.
+However the decompilation result is usually uncompilable, so we used the edit distance of the source codes as the approximation of the correctness.
+
+BLEU is 
 
 \chapter{Results}
 

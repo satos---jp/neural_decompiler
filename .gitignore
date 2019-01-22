@@ -4,6 +4,8 @@
 *.c
 *.s
 *.o
+*.out
+*.lprof
 __pycache__/
 build/
 .gdb_history

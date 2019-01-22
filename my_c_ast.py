@@ -299,6 +299,7 @@ class AST:
 				elif type(s) is types.FunctionType:
 					res = s(cs)
 			except IndexError:
+				return 'INVALID_SUBTREE'
 				print('indexerror')
 				sl.debug()
 			return res

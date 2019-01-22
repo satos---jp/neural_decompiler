@@ -261,9 +261,15 @@ def type_embedding(ty,na):
 		elif len(nt)==3:
 			return nt[0] + '(' + f(nt[1]) + ')' + strize(nt[2])
 		else:
+			#print('assert_at_type_embedding')
+			#print(nt,len(nt),ty)
 			assert False
 	
-	return f(td)
+	try:
+		return f(td)
+	except (IndexError,AssertionError,TypeError):
+		return 'INDALID_TYPE ' + na
+	#except AssertError:
 	#return "%s %s" % (ty,na)
 
 
@@ -277,10 +283,14 @@ def function_decl_func(cs):
 	try:
 		assert len(s)==0 and len(td)==2 and type(td[1]) is list
 	except AssertionError:
-		raise Oteage
-		print('function_decl_func_fisrt_miss')
-		print(cs)
-		exit()
+		#raise Oteage
+		#print('function_decl_func_fisrt_miss')
+		#print(cs)
+		#exit()
+		#print('invalid function decl')
+		#print(cs)
+		#exit()
+		return 'INVALID_FUNCTION_DECL{' + ''.join(cs) + '}'
 	arg_types_len = 0
 	if len(td[1])!=0 and td[1][0] != 'void':
 		arg_types_len = 1
@@ -294,15 +304,16 @@ def function_decl_func(cs):
 	#print(arg_types_len)
 	arg_names = cs[:arg_types_len]
 	cs = cs[arg_types_len:]
-	assert len(cs)<=1
+	#assert len(cs)<=1
 	if len(cs)==0:
 		body = ';'
 	else:
 		body = cs[0]
 	
 	try:
-		return td[0] + na + '(' + ','.join(map(lambda ab: type_embedding(*ab),arg_names)) + ')' + body
+		return td[0] + na + '(' + ','.join(arg_names) + ')' + body
 	except TypeError:
+		return 'INVALID_FUNCTION_DECL{' + ''.join(cs) + '}'
 		print('nazono type embedding no yatu')
 		raise AssertionError
 		print(cs)
@@ -331,8 +342,8 @@ class Oteage(Exception):
 
 def for_check(cs):
 	s = cs[0].strip()
-	if ';' in s[:-1]:
-		raise Oteage
+	#if ';' in s[:-1]:
+	#	raise Oteage
 	return 'for(' + cs[0] + ('' if len(s)>0 and s[-1]==';' else ';') + '{1};{2})'.format(*cs) + stmtize(cs[3])
 
 cfg2str = {
@@ -371,7 +382,7 @@ cfg2str = {
 	CursorKind.MEMBER_REF_EXPR: '{0}{1}{2}',
 	CursorKind.NULL_STMT: ';',
 	CursorKind.PAREN_EXPR: '({0})',
-	CursorKind.PARM_DECL: (lambda cs: cs), # f(int,int)    argument type. 
+	CursorKind.PARM_DECL: (lambda cs: type_embedding(*cs)), # f(int,int)    argument type. 
 	CursorKind.RETURN_STMT: (lambda cs: 'return;' if len(cs)==0 else 'return ' + cs[0] + ';'),
 	CursorKind.STRING_LITERAL: '{0}',
 	CursorKind.STRUCT_DECL: (lambda cs: (('struct ' + cs[0] + '{' + ''.join(cs[1:]) + '}' + ';\n') if len(cs)>1 else '')),
@@ -600,7 +611,7 @@ def data2tystr(data):
 		#print(acs,cts)
 		assert len(acs)==len(cts)
 		for (nkata,kna),v in zip(cts,acs):
-			if type(nkata) is list and nkata[1]=='list':
+			if type(nkata) is list and nkata[1]=='list' and type(v) is list:
 				args[kna] = list(map(treenize,v))
 			else:
 				args[kna] = treenize(v)
