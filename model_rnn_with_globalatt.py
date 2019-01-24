@@ -14,7 +14,7 @@ if isgpu:
 else:
 	xp = np
 
-from model_attention import Attention,DotAttention,GlobalGeneralAttention
+from model_attention import GlobalGeneralAttention
 
 def sequence_embed(embed, xs):
 	x_len = [len(x) for x in xs]
@@ -24,22 +24,22 @@ def sequence_embed(embed, xs):
 	return exs
 
 	
-class Seq2seq_with_Att(chainer.Chain):
-	def __init__(self, n_layers, n_source_vocab, n_target_vocab, n_units,v_eos_src,v_eos_dst,n_maxlen):
-		super(Seq2seq_with_Att, self).__init__()
+class Seq2seq_with_GlobalAtt(chainer.Chain):
+	def __init__(self, n_layers, n_source_vocab, n_target_vocab, n_units,v_eos_dst,n_maxlen):
+		super(Seq2seq_with_GlobalAtt, self).__init__()
+		self.n_target_vocab = n_target_vocab
 		with self.init_scope():
 			self.embed_x = L.EmbedID(n_source_vocab, n_units)
 			self.embed_y = L.EmbedID(n_target_vocab, n_units)
 			self.encoder = L.NStepBiLSTM(n_layers, n_units, n_units, 0.1)
-			self.decoder = L.NStepLSTM(n_layers, n_units*3, n_units, 0.1)
-			self.W = L.Linear(n_units, n_target_vocab)
+			self.decoder = L.NStepLSTM(n_layers, n_units, n_units*2, 0.1)
+			self.Wc = L.Linear(n_units*4, n_units)
+			self.Ws = L.Linear(n_units, self.n_target_vocab)
 			
-			self.att = Attention(n_units)
+			self.att = GlobalGeneralAttention(n_units)
 		
-		self.n_target_vocab = n_target_vocab
 		self.n_layers = n_layers
 		self.n_units = n_units
-		self.v_eos_src = v_eos_src
 		self.v_eos_dst = v_eos_dst
 		self.n_maxlen = n_maxlen
 
@@ -62,54 +62,20 @@ class Seq2seq_with_Att(chainer.Chain):
 		batch = len(xs)
 		# None represents a zero vector in an encoder.
 		hx, cx, xs_states = self.encoder(None, None, exs)
-		#_, _, os = self.decoder(hx, cx, eys)
-		
-		hx = F.transpose(hx,axes=(1,0,2))
-		cx = F.transpose(cx,axes=(1,0,2))
-		
-		#print(batch,hx.shape,cx.shape,(batch,xs_states[0].shape))
-		os = []
-		for i,(y,hxs) in enumerate(zip(eys,xs_states)):
-			nhx,ncx = hx[i],cx[i]
-			ncx = F.reshape(ncx,(ncx.shape[0],1,ncx.shape[1]))
-			nhx = F.reshape(nhx,(nhx.shape[0],1,nhx.shape[1]))
-			
-			self.att.init_hxs(hxs)
-			
-			nos = []
-			for v in y:
-				ctx = self.att(nhx)
-				tv = F.reshape(F.concat([ctx,v],axis=0),(1,self.n_units * 3))
-				#print(tv.shape)
-				#print(nhx.shape,ncx.shape,tv.shape)
-				thxs,tcxs,_ = self.decoder(nhx,ncx,[tv])
+		hx = F.transpose(F.reshape(F.transpose(hx,(1,0,2)),(batch,self.n_layers,self.n_units*2)),(1,0,2))
+		cx = F.transpose(F.reshape(F.transpose(cx,(1,0,2)),(batch,self.n_layers,self.n_units*2)),(1,0,2))
+		_, _, os = self.decoder(hx, cx, eys)
 				
-				nhx = thxs
-				ncx = tcxs
-				#print(nhx[-1][0].dtype)
-				nos.append(nhx[-1][0])
-			
-			nos = F.stack(nos)
-			#print(nos.shape)
-			os.append(nos)
-			
-			self.att.reset()
+		ctxs = [self.att(xh,yh) for (xh,yh) in zip(xs_states,os)]
+		att_os = [F.tanh(self.Wc(F.concat([ch,yh],axis=1))) for (ch,yh) in zip(ctxs,os)]
 		
-		#print(list(map(lambda x: len(x),os)))
-		
-		# It is faster to concatenate data before calculating loss
-		# because only one matrix multiplication is called.
-		concat_os = F.concat(os, axis=0)
-		#print(concat_os.dtype)
+		concat_os = F.concat(att_os, axis=0)
 		concat_ys_out = F.concat(ys_out, axis=0)
 		#print(concat_ys_out.dtype)
 		loss = F.sum(F.softmax_cross_entropy(
-			self.W(concat_os), concat_ys_out, reduce='no')) / batch
-
+			self.Ws(concat_os), concat_ys_out, reduce='no')) / batch
+		
 		chainer.report({'loss': loss}, self)
-		n_words = concat_ys_out.shape[0]
-		perp = self.xp.exp(loss.array * batch / n_words)
-		chainer.report({'perp': perp}, self)
 		return loss
 	
 	def translate(self, xs):
@@ -120,36 +86,35 @@ class Seq2seq_with_Att(chainer.Chain):
 		with chainer.no_backprop_mode(), chainer.using_config('train', False):
 
 			exs = sequence_embed(self.embed_x, xs)
-			hx, cx, xs_states = self.encoder(None, None, exs)
+			hx, cx, xs_outputs = self.encoder(None, None, exs)
+			hx = F.transpose(F.reshape(F.transpose(hx,(1,0,2)),(batch,self.n_layers,self.n_units*2)),(1,0,2))
+			cx = F.transpose(F.reshape(F.transpose(cx,(1,0,2)),(batch,self.n_layers,self.n_units*2)),(1,0,2))
 			#print(hx.shape,cx.shape,(1,xs_states[0].shape))
 			#sprint(xs_states)
 			hx = F.transpose(hx,axes=(1,0,2))
 			cx = F.transpose(cx,axes=(1,0,2))
 			
-			ivs = [self.embed_y(self.xp.full(1,i,np.int32))[0] for i in range(self.n_target_vocab)]
+			ivs = sequence_embed(self.embed_y,list(map(lambda i: xp.array([i]),range(self.n_target_vocab))))
 			v = ivs[EOS_DST]
 			
 			result = []
 			
-			for i,hxs in enumerate(xs_states):
+			for i,hxs in enumerate(xs_outputs):
 				nhx,ncx = hx[i],cx[i]
 				ncx = F.reshape(ncx,(ncx.shape[0],1,ncx.shape[1]))
 				nhx = F.reshape(nhx,(nhx.shape[0],1,nhx.shape[1]))
-				self.att.init_hxs(hxs)
 				beam_data = [(0.0,([],v,nhx,ncx))]
 				
 				for j in range(self.n_maxlen):
 					to_beam = []
 					for r,(kd,v,nhx,ncx) in beam_data:
-						ctx = self.att(nhx)
-						#print(ctx.shape,v.shape)
-						tv = F.reshape(F.concat([ctx,v],axis=0),(1,self.n_units * 3))
-						#print(tv.shape)
-						#print(nhx.shape,ncx.shape,tv.shape)
-						thx,tcx,ys = self.decoder(nhx,ncx,[tv])
-						
-						wy = self.W(ys[0]).data[0]
-						wy = F.reshape(F.log_softmax(F.reshape(wy,(1,self.n_target_vocab)),axis=1),(self.n_target_vocab,)).data
+						#print(v.shape)
+						thx,tcx,ys = self.decoder(nhx,ncx,[v])
+						yh = ys[0]
+						ctx = self.att(xs_outputs[i],yh)
+						att_yh = F.tanh(self.Wc(F.concat([ctx,yh],axis=1)))
+						wy = self.Ws(att_yh).data[0]
+						wy = F.reshape(F.log_softmax(F.reshape(wy,(1,self.n_target_vocab))),(self.n_target_vocab,)).data
 						#print(wy.shape)
 						to_beam += [(r+nr,(kd + [i],ivs[i],thx,tcx)) for i,nr in enumerate(wy)]
 					
@@ -158,7 +123,6 @@ class Seq2seq_with_Att(chainer.Chain):
 					beam_data = sorted(to_beam)[::-1][:beam_with]
 					#print(list(map(lambda a: a[0],beam_data)))
 				
-				self.att.reset()
 				result.append(beam_data[0][1][0])			
 		
 		# Remove EOS taggs

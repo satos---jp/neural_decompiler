@@ -145,7 +145,7 @@ They calculated estimated the name of the variable by the functionality of it
 
 There are many applications of neural networks for program synthesis. They are summurized in \cite{deep_programming_matome}.
 
-In this thesis, we applied seq-to-tree model suggested in \cite{Seq2Tree}, because the input of the decompiler is the sequence of machine codes.
+In this thesis, we applied sequence-to-tree model suggested in \cite{Seq2Tree}, because the input of the decompiler is the sequence of machine codes.
 
 For another example, in \cite{coffeescript_to_javascript}, they tried to mutually translate from JavaScript to CoffeeScript, and its inverse.
 In that case, both JavaScript codes and CoffeeScript codes are tree structured, so they suggested tree-to-tree model.
@@ -250,10 +250,10 @@ and LSTM emits one output vectors, which represents the next internal state of t
 % This model is called seq2seq (sequence to seqence) model.
 
 % 477 words.
-LSTM unit is applied for SMT task in \cite{seq2seq}, as the essential unit of the seq-to-seq (sequence to sequence) model.
+LSTM unit is applied for SMT task in \cite{seq2seq}, as the essential unit of the sequence-to-sequence (sequence to sequence) model.
 SMT is the task which tries to translate one sentense $sx$ written in one language into the sentense $sy$ written in another language.
 
-Seq-to-seq model is composed of two modules, the encoder netwrok and the decoder network.
+Sequence-to-sequence model is composed of two modules, the encoder netwrok and the decoder network.
 
 The purpose of the encoder network is to summerize the input sequence $sx$, whose length varies depending on the sequence, into one fixed length vector.
 This process is carried out as follows. 
@@ -284,22 +284,34 @@ When the token $sy_{m+1}$ is the $ EOS $ token, generating process is stopped an
 % (TODO) 理由/気持ち について述べたいですね。
 
 
+In addition to 
 
-% (TODO) BiLSTMとmulti-layerについてさらっと
+First is the Bidirectional Reccurent Neural Networks (BRNN) is the architecture introduced in \cite{BiRNN}.
+In the experiment, this architecture is used for the encoder network as follows.
+In addition to the internal state $ enc_{k} $, the reverse internal state $ enc_{k}^{\gets} $ is also calculated 
+in accordance with the recursive formula $ enc_{k}^{\gets} = lstm_{enc}^{\gets}(enc_{k+1}^{\gets},vx_{k}) $.
+Then both of the internal states $ enc_{n} $ and $ enc_{1}^{\gets} $ are used for decoder network.
+
+Second is the multi-layer reccurent neural networks, introduced in ここ決める.
+It is reported that, instead of the output of the LSTM units to another LSTM units will improve the accuracy of the prediction.
+This architecture is called as stucked reccurent neural networks or multi-layer reccurent neural networks.
 
 
 \subsection{Attention}
-Attention is a extension module of seq-to-seq model to improve the quality of translation. 
-Simple seq-to-seq model has a problem that the length of the encoded vector $enc_{n}$ is fixed 
+Attention is a extension module of sequence-to-sequence model to improve the quality of translation. 
+Simple sequence-to-sequence model has a problem that the length of the encoded vector $enc_{n}$ is fixed 
 regardless of the length of the input sequence $sx$. 
 Therefore, the longer the length of the input becomes, the more likely the information of the input will be lost.
 This problem is eased by using the information in the encoding network when decoding the output sequence.
 
 The attention module is first developed in \cite{attention_paper}.
-However, the attention 
 We inplemented the global general attention, which is intoduced in \cite{dot_attention}, for improving the quality of decompilation.
 In this subsection, we will describe about the global general attention.
 
+
+In the pure sequence-to-sequence model, the conditional probability  $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ is calculated from $ dec_{k} $ ,which is the internal state of the decoder network.
+In the sequence-to-sequence with attention model, the probability is calcutated from $ dec_{k} $ and the context vevctor $ c_{k} $.
+$ c_{k} $
 
 
 After generating $ dec_{k} $, the context vector $ c_{k} $ is calculated from the hidden states $ enc_{1} \dots enc_{n} $.
@@ -312,33 +324,28 @@ Then, the probability $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ is estimated as $ sof
 
 
 
-\subsection{Seq-to-Tree}
+\subsection{Sequence-to-Tree}
 % 184 words
 Compare to natural languages, programming languages obeys rigid grammer, wich is usually context free grammer,  
 and it is reasonable to consider the grammer of the programming language in generating programs.
-Seq-to-Tree is a model for generating tree-structured output from sequence input. This model is introduced in \cite{Seq2Tree} for generating programs from the program specification written in natural languages. 
+Sequence-to-Tree is a model for generating tree-structured output from sequence input. This model is introduced in \cite{Seq2Tree} for generating programs from the program specification written in natural languages. 
 This task is similer to our task, which aims to generate programs from the sequence of the assembly code, so we implemented this model in the experiment.
 
-Now, we will describe about the seq-2-tree model.
-seq-2-tree model is composed of two modules, the encoder netwrok and the decoder network.
-The encoder network of seq-2-tree model is the same as the encoder network of seq-2-tree model. It summerize the input sequence into one fixed length vector.
+Now, we will describe about the sequence-2-tree model.
+sequence-to-tree model is composed of two modules, the encoder netwrok and the decoder network.
+The encoder network of sequence-2-tree model is the same as the encoder network of sequence-to-tree model. It summerize the input sequence into one fixed length vector.
 
 The decoder network is a network for generating tree structured output. 
-In this paper, our implemented model is based on model in \cite{Seq2Tree}. 
-So first, we briefly describe the model implemented in the paper, and then, we describe our model.
-
-\subsubsection{Previous Model}
-% 312 words
-In algorithmic parspective, the inference of the seq2seq model tries to generate sequence one by one, from the first token to the last.
-% The Seq2Tree model also tries to generate tree structure one by one, with depth-first order.
-The inference of the SeqTree model starts from the start symbol, and recursively expand the nonterminal symbols in depth-first order.
-
-The tree-structure is representable by the sequence of the actions which expands a nonterminal symbol of the constructing tree.
+A tree-structure is representable by the sequence of the actions which expands a nonterminal symbol of the constructing tree.
 Suppose the tree $ty$ is generated by the action sequence $ [a_1, \dots a_m] $, 
 where $ a_k $ is the action which expands left-most symbol of the nonterminal symbol in the tree generated by the action sequence $ [a_1, \dots a_{k-1}] $. 
 Then, the tree-generating probability $ p(ty|sx) $ is decomposed to $ \prod_{k=1}^n p(a_k|sx,[a_1, \dots a_{k-1}]) $, 
-so the seq-2-seq model is now applicable for generating tree structure, by emmbeding each action to representing vector $av_k$ and 
+so the sequence-to-sequence model is now applicable for generating tree structure, by emmbeding each action to representing vector $av_k$ and 
 calculating $ LSTM_{dec}(dec_{k},av_{k}) $ for estimating $p(a_{k+1}|sx,[a_1, \dots a_{k}]) $.  
+
+% In algorithmic parspective, the inference of the seq2seq model tries to generate sequence one by one, from the first token to the last.
+% The Seq2Tree model also tries to generate tree structure one by one, with depth-first order.
+% The inference of the SeqTree model starts from the start symbol, and recursively expand the nonterminal symbols in depth-first order.
 
 In the paper, they additionaly tries to use the information which is peculiar to the tree structure. 
 For expanding the node $d$, they also use the information of node type $ nf_{d} $ and the parent action $p_{d}$ from which $d$ is generated.
@@ -347,22 +354,6 @@ where $nfv_{d},pv_{d}$ are the vector embedding of $nf_{d},p_{d}$, and $ctx_{k}$
 
 They also used devised method for generating terminal symbols, because they need to copy the name of some variables from the program specification.
 But in our case, we don't need copy the information from the input, because the name information is lost when compiling, so we omit the discriptionp of this copy method.
-
-
-\subsubsection{Our Model}
-
-Calculating context With 
-We changed previous model 
-
-Our model tries to exploit the intuitive that each node of the tree is basically independent from its sibling.
-This intuition is not true when the compiler optimizes the assembler. 
-However, in this paper, we tested the 
-
-
-
-
-
-
 
 
 
@@ -450,9 +441,26 @@ but we couldn't implement this because of its technical difficalty, so this is l
 The AST is used for sequence-to-Tree model dataset as it is.
 Also, the AST is converted to C token sequence for sequence-to-sequence model dataset. 
 
-
 \section{Model Configuration}
-The training model was implemented with Chainer. Source codes are avaiable at \url{}.
+The training model was implemented with Chainer. 
+We implemented three models, Seq2seq, Seq2seqWithAattention, and Seq2tree.
+
+The encoding module was bidirectional LSTM in all of three models.
+The decoding module of Seq2seq and Seq2seqWithAattention predict the conditional probability of a next token $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
+The decoding module of Seq2tree predicts the conditional probability of a next action $ p(a_{k}|sx,[a_1, \dots a_{k-1}]) $.
+
+Seq2seqWithAattention and Seq2tree have attention module, while Seq2seq have not.
+
+\begin{figure}
+	\begin{tabular}{c|c}
+		Number of Layers & 4
+		%Dimensionality of Embedded Vectors & 128
+	\end{tabular}
+	\caption{The configuration parameter of the models}
+	\label{fig:parameterofmodels}
+\end{figure}
+
+Figure~\ref{fig:parameterofmodels} shows the parameter of the models. 
 
 
 (TODO)レイヤ数、ロスについてのべる。
@@ -470,11 +478,15 @@ Here, the edit distance ratio between two strings means the Levenshtein distance
 Idealy, the correctness of the decompilation result should be measured by the distance of the meaning of the program.
 However the decompilation result is usually uncompilable, so we used the edit distance of the source codes as the approximation of the correctness.
 
-BLEU is 
+BLEU is the metrics for the naturallity of the generated program. 
+It is first introduced in \cite{BLEU}, for evaluating the performance of the machine translation.
+
+
 
 \chapter{Results}
 
-We tested our methods for 
+We tested three models. 
+Seq2seq is a model with  
 
 
 (TODO)seq2seq、アテンション付きseq2seq、seq2treeとバイナリそのまま/逆アセンブル後 の6パターンのデータを出す。

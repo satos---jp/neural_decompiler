@@ -5,8 +5,17 @@ import chainer.functions as F
 from chainer import training
 from chainer.training import extensions
 from chainer import serializers
-import c_cfg
-	
+#import c_cfg
+
+from chainer import cuda
+
+from cuda_setting import isgpu
+
+if isgpu:
+	xp = cuda.cupy
+else:
+	xp = np
+
 def sequence_embed(embed, xs):
 	x_len = [len(x) for x in xs]
 	x_section = np.cumsum(x_len[:-1])
@@ -53,8 +62,8 @@ class Seq2Tree_Flatten(chainer.Chain):
 			self.embed_y_1 = L.EmbedID(self.type_size, n_units) # maybe mergable
 			
 			self.encoder = L.NStepBiLSTM(n_layers, n_units, n_units, 0.1)
-			self.decoder = L.NStepLSTM(n_layers, n_units*2, n_units, 0.1)
-			self.Wc = L.Linear(n_units*3, n_units)
+			self.decoder = L.NStepLSTM(n_layers, n_units*2, n_units*2, 0.1)
+			self.Wc = L.Linear(n_units*4, n_units)
 			self.Ws = L.Linear(n_units, self.n_all_choice)
 			
 			#self.att = Attention(n_units)
@@ -64,14 +73,13 @@ class Seq2Tree_Flatten(chainer.Chain):
 		self.n_units = n_units
 		self.v_eos_src = v_eos_src
 		self.n_maxsize = n_maxsize
-		self.v_eos_dst = c_cfg.rootidx
+		self.rootidx = len(trans_data)-1
 		
 
 
 	#@profile
 	def forward(self, xs, ys):
-		xs = [x[::-1] for x in xs]
-		
+		xs = [xp.array(x[::-1]) for x in xs]
 		
 		def flatten(y,pa=self.embed_root_idx):
 			ty,ch,cs = y
@@ -84,10 +92,10 @@ class Seq2Tree_Flatten(chainer.Chain):
 		#assert all(map(lambda x: unflatten(flatten(x),c_cfg.rootidx)[0]==x,ys))
 		
 		ys = list(map(flatten,ys))
-		ys_in_0  = [np.array(list(map(lambda ab: ab[0][0],y))) for y in ys]
-		ys_in_1  = [np.array(list(map(lambda ab: ab[0][1],y))) for y in ys]
-		ys_out = [np.array(list(map(lambda ab: self.choice_idx[ab[0][1]][ab[1]],y))) for y in ys]
-		#ys_out = [np.array(list(map(lambda ab: ab[1],y))) for y in ys]
+		ys_in_0  = [xp.array(list(map(lambda ab: ab[0][0],y))) for y in ys]
+		ys_in_1  = [xp.array(list(map(lambda ab: ab[0][1],y))) for y in ys]
+		ys_out = [xp.array(list(map(lambda ab: self.choice_idx[ab[0][1]][ab[1]],y))) for y in ys]
+		#ys_out = [xp.array(list(map(lambda ab: ab[1],y))) for y in ys]
 		
 		# Both xs and ys_in are lists of arrays.
 		exs = sequence_embed(self.embed_x, xs)
@@ -101,6 +109,15 @@ class Seq2Tree_Flatten(chainer.Chain):
 		# None represents a zero vector in an encoder.
 		hx, cx, xs_states = self.encoder(None, None, exs)
 		#print('encode')
+		
+		#print(hx.shape,cx.shape,eys[0].shape)
+		#print(hx[:,:,1],hx[:,:,1].shape)
+		#exit()
+		
+		hx = F.transpose(F.reshape(F.transpose(hx,(1,0,2)),(batch,self.n_layers,self.n_units*2)),(1,0,2))
+		cx = F.transpose(F.reshape(F.transpose(cx,(1,0,2)),(batch,self.n_layers,self.n_units*2)),(1,0,2))
+		# CPU :: (8, 4, 128) (8, 4, 128) (length , 256)
+		# GPU :: (8, 4, 128) (8, 4, 128) (length , 256)
 		_, _, os = self.decoder(hx, cx, eys)
 		#print('decode')
 		
@@ -122,12 +139,10 @@ class Seq2Tree_Flatten(chainer.Chain):
 
 
 	def translate(self, xs):
-		xs = [x[::-1] for x in xs]
 		
-		EOS_DST = self.v_eos_dst
 		batch = len(xs)
 		
-		def unflatten(v,ty=c_cfg.rootidx):
+		def unflatten(v,ty=self.rootidx):
 			#print(v,ty)
 			if len(v)==0:
 				return (ty,-1,[]),[]
@@ -142,7 +157,7 @@ class Seq2Tree_Flatten(chainer.Chain):
 	
 			return (ty,ch,rcs),v
 		
-		def get_frontier_type(v,ty=c_cfg.rootidx,pa=self.embed_root_idx):
+		def get_frontier_type(v,ty=self.rootidx,pa=self.embed_root_idx):
 			if len(v)==0:
 				return (pa,ty),[]
 			ch = v[0]
@@ -155,11 +170,13 @@ class Seq2Tree_Flatten(chainer.Chain):
 	
 			return None,v
 		
-		beam_with = 1
+		beam_with = 3
 		with chainer.no_backprop_mode(), chainer.using_config('train', False):
-			xs = [x[::-1] for x in xs]
+			xs = [xp.array(x[::-1]) for x in xs]
 			exs = sequence_embed(self.embed_x, xs)
 			hx, cx, xs_outputs = self.encoder(None, None, exs)
+			hx = F.transpose(F.reshape(F.transpose(hx,(1,0,2)),(batch,self.n_layers,self.n_units*2)),(1,0,2))
+			cx = F.transpose(F.reshape(F.transpose(cx,(1,0,2)),(batch,self.n_layers,self.n_units*2)),(1,0,2))
 			#print('encoded')
 			#print(hx.shape,cx.shape,(1,xs_states[0].shape))
 			#sprint(xs_states)
@@ -185,7 +202,7 @@ class Seq2Tree_Flatten(chainer.Chain):
 							to_beam.append((r,(kd,nhx,ncx)))
 							continue
 						pa,ty = paty
-						v = F.concat([self.embed_y_0(np.array([pa])),self.embed_y_1(np.array([ty]))],axis=1)
+						v = F.concat([self.embed_y_0(xp.array([pa])),self.embed_y_1(xp.array([ty]))],axis=1)
 						#print(v.shape)
 						thx,tcx,ys = self.decoder(nhx,ncx,[v])
 						
@@ -197,7 +214,7 @@ class Seq2Tree_Flatten(chainer.Chain):
 						cl = choice_to - choice_from
 						wy = self.Ws(att_yh).data[0][choice_from:choice_to]
 						#print(wy.shape,wy)
-						wy = F.reshape(F.log_softmax(F.reshape(wy,(1,cl)),axis=1),(cl,)).data
+						wy = F.reshape(F.log_softmax(F.reshape(wy,(1,cl))),(cl,)).data
 						#print(wy.shape)
 						to_beam += [(r+nr,(kd + [i],thx,tcx)) for i,nr in list(enumerate(wy))]
 					
@@ -214,4 +231,6 @@ class Seq2Tree_Flatten(chainer.Chain):
 		
 		#print(outs)
 		return outs
-		
+
+
+

@@ -99,8 +99,6 @@ for fn in srcs:
 		print('too long',fn)
 		continue
 	
-
-
 	nibeki = [1<<(i*8) for i in range(8)]
 	def asm_trim(v):
 		if v in x64_opcodes_registers:

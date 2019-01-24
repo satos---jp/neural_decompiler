@@ -71,7 +71,7 @@ class GlobalGeneralAttention(chainer.Chain):
 		self.n_units = n_units
 		self.hxs = None
 		with self.init_scope():
-			self.Wa = L.Linear(n_units, n_units*2)
+			self.Wa = L.Linear(n_units*2, n_units*2)
 		
 	#@profile
 	def forward(self,xh,yh):
