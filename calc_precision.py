@@ -47,7 +47,7 @@ def calc_ast(fn):
 	with open(fn,'rb') as fp:
 		ds = pickle.load(fp)
 	#print(len(ds))
-	ds = ds[:1000]
+	ds = ds[:100]
 	def tree2normalizedsentense(tree,normalize=True):
 		s = csrc2ast.ast2token_seq(tree)
 		if not normalize:
@@ -99,7 +99,7 @@ for i in range(21):
 	print(r,',')
 print(']')
 """
-
+"""
 print('[')
 for i in range(19):
 	fn = 'translate_data/seq2tree_flatten_verbose_choice/iter_%d_transdata.pickle' % (i*100)
@@ -113,4 +113,4 @@ for i in range(21):
 	r = calc_ast(fn)
 	print(r,',')
 print(']')
-"""
+

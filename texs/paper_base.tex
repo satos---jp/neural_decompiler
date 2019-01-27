@@ -19,6 +19,7 @@ __NAMES__
 \usepackage{cite}
 \usepackage{url}
 \usepackage{natbib}
+\usepackage[dvipdfmx]{graphicx}
 
 \lstdefinestyle{myCustomMatlabStyle}{
   language=C,
@@ -68,7 +69,8 @@ In this thesis, we apply machine translation techniques to generate human intell
 More specifically, we propose to use recurrent neural networks with attention, 
 which have been demonstrated to be useful for machine translation. 
 In experiments, we use source codes collected from open source projects and their binary data for training and evaluating the neural networks.
-(TODO)実験結果について述べること(まだ未確定)
+From the experiment, we can observe little improvement in the decompilation result with the use of attention.
+
 \end{eabstract}
 \begin{jabstract}
 逆コンパイラはコンパイル後のバイナリデータからソースコードを復元するためのツールである。
@@ -76,6 +78,7 @@ In experiments, we use source codes collected from open source projects and thei
 そこで本論文では、統計的機械翻訳の技術を逆コンパイラに用いた、解析者にとってわかりやすいソースコードを出力する逆コンパイラを提案する。
 具体的には、機械翻訳において有用とされる注意機構付き再帰型ニューラルネットワークを用いる。
 実験では、オープンソースプロジェクトから収集したソースコードとそのバイナリデータを用いてニューラルネットワークを学習し、その性能を検証した。
+実験の結果、注意機構を用いることににより、逆コンパイル結果における若干の精度向上が認められた。
 \end{jabstract}
 
 \maketitle
@@ -302,8 +305,8 @@ When the token $sy_{m+1}$ is the $ EOS $ token, generating process is stopped an
 % (TODO) このへんで 図を入れる
 % (TODO) 理由/気持ち について述べたいですね。
 
-The foregoing is the basic structure of the sequence-to-sequence model.
-To improve the performance of the model, there are some devices for the model.
+What is mentioned above is the basic structure of the sequence-to-sequence model.
+To improve the performance of the sequence-to-sequence model, there are some devices for the model.
 In the following, we introduce two devices, which are used in our experiment.
 
 First is the Bidirectional Reccurent Neural Networks (BRNN) is the architecture introduced in \cite{BiRNN}.
@@ -312,12 +315,9 @@ In addition to the internal state $ enc_{k} $, the reverse internal state $ enc_
 in accordance with the recursive formula $ enc_{k}^{\gets} = lstm_{enc}^{\gets}(enc_{k+1}^{\gets},vx_{k}) $.
 Then both of the internal states $ enc_{n} $ and $ enc_{1}^{\gets} $ are used for decoder network.
 
-Second is the multi-layer reccurent neural networks, introduced in ここ決める.
-
-LSTMの出力を別のLSTMに入力して
+Second is the multi-layer reccurent neural networks, introduced in \cite{multi_layer}.
 
 TODO(satos)
-
 
 
 % It is reported that, instead of the output of the LSTM units to another LSTM units will improve the accuracy of the prediction.
@@ -331,23 +331,34 @@ regardless of the length of the input sequence $sx$.
 Therefore, the longer the length of the input becomes, the more likely the information of the input will be lost.
 This problem is eased by using the information in the encoding network when decoding the output sequence.
 
-The attention module is first developed in \cite{attention_paper}.
+The attention module is first developed by \cite{attention_paper}.
 We inplemented the global general attention, which is intoduced in \cite{dot_attention}, for improving the quality of decompilation.
 In the following, we will describe about the global general attention.
 
-The model with attention
+As above mentioned, the pure sequence-to-sequence model uses the output of decoder network $ dec_{k} $ for estimating 
+the distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
+In the sequence-to-sequence model with attention, 
+a context vector $ ctx_{k} $ is calculalted from $ dec_{k} $ and the internal states of encoder network $ enc_{1} \dots enc_{n} $, 
+then the distribution is estimated from the output vector $ dec_{k} $ and context vector $ ctx_{k} $.
+The context vector $ ctx_{k} $ is calculated as follows.
+For each state $ enc_{l} $, the importance of the state $ a_{l} $ is calculalted as $ a_{l} = score(dec_{k},enc_{l}) $,
+then the $ ctx_{k} $ is calculated as $ ctx_{k} = \sum_{l=1}^{n} \frac{\exp{a_{l}}}{\sum_{l=1}^{n}\exp{a_{l}}} enc{l} $, as the weighted average of $ enc_{1} \dots enc_{n} $.
+% Multiple score functions are introduced by \cite{dot_attention}, and we choiced 
+In the paper by \cite{dot_attention}, various kinds of score function is suggested.
+We used general score function, which is calculated as $ score(dec_{k},enc_{l}) = dec_{k}^T W enc_{l} $ ,
+where W is the parameter matrix. 
 
-TODO(satos)
+% With the information of the internal state $ ctx_{k} $ of the encoder network, the decoder network can access to the 
 
-アテンション機構を用いる場合、前述したようにdecoder networkの出力 $ dec_{k} $ をそのまま用いて分布をesitmateするのではなく、
-$ dec_{k} $ と encoder network の出力 $ enc_{1} \dots enc_{n} $ (encoder が BiLSTMの場合 $ enc^{\gets}_{1} \dots enc^{\gets}_{n} $ も)
-を用いて context vector $ ctx_{k} $ を生成し、 $ dec_{k} $ と $ ctx_{k} $ によって条件付き分布をesitmateする。
+% アテンション機構を用いる場合、前述したようにdecoder networkの出力 $ dec_{k} $ をそのまま用いて分布をesitmateするのではなく、
+% $ dec_{k} $ と encoder network の出力 $ enc_{1} \dots enc_{n} $ (encoder が BiLSTMの場合 $ enc^{\gets}_{1} \dots enc^{\gets}_{n} $ も)
+% を用いて context vector $ ctx_{k} $ を生成し、 $ dec_{k} $ と $ ctx_{k} $ によって条件付き分布をesitmateする。
 
-$ ctx_{k} $ は、 $ enc_{1} \dots enc_{n} $ の加重平均によって計算される。 具体的には、
-各状態 $ enc_{l} $ について その状態のスコア $ a_{l} = score(dec_{k},enc_{l}) $ を計算し、
-$ ctx_{k} = \sum_{l=1}^{n} \frac{\exp{a_{l}}}{\sum_{l=1}^{n}\exp{a_{l}}} enc{l} $ として計算される。
+% $ ctx_{k} $ は、 $ enc_{1} \dots enc_{n} $ の加重平均によって計算される。 具体的には、
+% 各状態 $ enc_{l} $ について その状態のスコア $ a_{l} = score(dec_{k},enc_{l}) $ を計算し、
+% $ ctx_{k} = \sum_{l=1}^{n} \frac{\exp{a_{l}}}{\sum_{l=1}^{n}\exp{a_{l}}} enc{l} $ として計算される。
 
-この $ ctx_{k} $ を併せて用いることにより、 分布予測時に入力データの情報にアクセスすることができ、精度の向上が見込める。
+% この $ ctx_{k} $ を併せて用いることにより、 分布予測時に入力データの情報にアクセスすることができ、精度の向上が見込める。
 
 
 % In the pure sequence-to-sequence model, the conditional probability  $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ is calculated from $ dec_{k} $ ,which is the internal state of the decoder network.
@@ -538,7 +549,7 @@ We converted such optional node to the alternative of some node and Null node, l
 \item The variable names, function names, label names, or type names were renamed like $\alpha$-conversion.
 \item There are four type of literals in C language. 
 The integer literal less than 256 is preserved, and the literal greater than 256 is clipped to 256.
-The string, float and character literals are converted to {\sl \_\_LITERAL\_(string|float|char)\_\_} simbol.
+The string, float and character literals are converted to {\sl \_\_LITERAL\_\_} simbol.
 
 Modifying the node to indicate the value in the assembly code corresponding to the literal is also conceibable way,
 but we couldn't implement this because of its technical difficalty, so this is left to future work.
@@ -557,11 +568,11 @@ while the decoder module of Seq2tree predicts the conditional probability of a n
 
 Seq2seqAtt and Seq2tree are the models with attention, while Seq2seq is not.
 
-\begin{figure}
-	\begin{tabular}{|c|c|c|c|}
+\begin{figure}[h]
+	\begin{tabular}{|c||c|c|c|}
 		\hline
-		 model & Seq2seq & Seq2seqAtt & Seq2tree \\ \hline
-		 Predict & \multicolumn{2}{|c|}{next token} & next action \\ \hline
+		  & Seq2seq & Seq2seqAtt & Seq2tree \\ \hline \hline
+		 Generate & \multicolumn{2}{|c|}{token sequence} & AST \\ \hline
 		 With Attention & no & \multicolumn{2}{|c|}{yes} \\ \hline
 		 Encoder & \multicolumn{3}{|c|}{Bidirectional LSTM} \\ \hline
 		Number of LSTM Layers & \multicolumn{3}{|c|}{4} \\ \hline
@@ -589,7 +600,7 @@ The paremeters of Adam are $ (\alpha,\beta_1,\beta_2) = (0.001,0.9,0.999) $, whi
 We evaluated the quality of the decompilation by two metrics, edit distance ratio and BLEU.
 
 Edit distance ratio is the metrics for the correctness of the decompilation result.
-Here, the edit distance ratio between two strings means the Levenshtein distance divided by the longer length of the strings.
+Here, the edit distance ratio between two strings means the Levenshtein distance divided by the average length of the two strings.
 Idealy, the correctness of the decompilation result should be measured by the distance of the meaning of the program.
 However the decompilation result is usually uncompilable, so we used the edit distance of the source codes as the approximation of the correctness.
 
@@ -605,36 +616,85 @@ In the experiment, we normalized variable names in the source codes by renaming.
 % 補足として、今回は edit distance と BLEU を計算する際に、変数名を先頭から順に順番に付け直すことにより、ソースコード中の変数名の付けなおしを行っている。
 % これはプログラムの意味は変数名に依らないためである。
 
-\chapter{Results}
+\chapter{Evaluation}
+In this chapter, we show the evaluated result of the three models, Seq2seq, Seq2seqAtt, and Seq2tree.
+% We trained each models with reedbush, を用い、各モデルについて4時間学習させた。
+% We collected approximately $ 10^7 $ pairs of datasets. 
 
-TODO(satos)
 
 
-まず先に、学習に用いたデータ長の分布を Figure~\ref{fig:editdist} に示す。
-ソースコードの部分木を全て列挙するデータ生成法の性質上、長さの短いコード辺が極端に多いことが確認できる。
+% TODO(satos)
+
+% At first, we show the 
+
+% まず先に、学習に用いたデータ長の分布を Figure~\ref{fig:editdist} に示す。
+% ソースコードの部分木を全て列挙するデータ生成法の性質上、長さの短いコード辺が極端に多いことが確認できる。
 
 % We tested three models. 
 
-今回、それぞれのモデルの学習には、東京大学のreedbushを用い、各モデルについて4時間学習させた。
+% 今回、それぞれのモデルの学習には、東京大学のreedbushを用い、各モデルについて4時間学習させた。
 
-精度計測では、各モデルに対して テストケースから100個のデータをランダムに取り出して翻訳させ、それらの編集距離とBLEU値の平均を計測した。
+% 精度計測では、各モデルに対して テストケースから100個のデータをランダムに取り出して翻訳させ、それらの編集距離とBLEU値の平均を計測した。
+
+For evaluating each model, we randomly sampled 100 data pairs from test cases, generated estimated decompilation results for each test cases,
+then averaged the edit distance ratios and BLEU scores between results and ground truths.
+
+\begin{figure}[]
+	\includegraphics[width=12cm]{edit_dist.png}
+	\caption{Averaged edit distance ratio for each models}
+	\label{fig:editdist}
+	\includegraphics[width=12cm]{bleu.png}
+	\caption{Averaged BLEU score for each models}
+	\label{fig:bleu}
+\end{figure}
 
 % 図1は各モデルについて、学習に用いたデータ数と編集距離をプロットしたグラフである。
 % 図2は各モデルについて、学習に用いたデータ数と編集距離をプロットしたグラフである。
-Figure~\ref{fig:editdist} shows the relation of trainig data size and the edit disatnce for each models.
-Figure~\ref{fig:bleu} shows the relation of trainig data size and the BLEU score for each models.
+Figure~\ref{fig:editdist} shows the relation of trainig data size and the averaged edit distance ratio for each models.
+Figure~\ref{fig:bleu} shows the relation of trainig data size and the averaged BLEU score for each models.
+The lower edit distance ratio and the higher BLEU score means the better decompilation performance.
 
-図1からわかるように、attention付きのネットワークとそうでないネットワークの間には有意に差が存在しているが、
-Seq2seqWithAattention,Seq2Tree の間にはあまり差がみられない。
+We can see that Seq2seqAtt shows slightly better results in both edit distance ratios and BLEU scores, 
+while there are no significant difference between Seq2seq and Seq2tree in both metrics.
+Seq2seqの結果とSeq2seqAttの結果を比較することにより、attention が性能向上に寄与していることがわかります。
+逆にSeq2treeにはattentionがあるにもかかわらずSeq2seqと比較して性能向上が見られなかったわけですが、
+これはCのソースコードをASTに変換した際に、データサイズが増えたためであると考えられます。
+
+\begin{figure}[]
+	\includegraphics[width=12cm]{c_lens.png}
+	\caption{Length distribution of C token flagments}
+	\label{fig:csizes}
+	\includegraphics[width=12cm]{ast_lens.png}
+	\caption{Length distribution of datasets as AST}
+	\label{fig:astsizes}
+\end{figure}
+
+
+Figure~\ref{fig:csizes} shows the length distribution of the dataset as C token sequences
+, and figure~\ref{fig:astsizes} shows the size distribution of the same dataset as AST trees.
+The length 
+According to the figures, the AST size is 2~3 times larger than that of C source codes.
+  
+
+
+
+% According to the figure 1, the 
+% 図1からわかるように、attention付きのネットワークとそうでないネットワークの間には有意に差が存在しているが、
+% Seq2seqWithAattention,Seq2Tree の間にはあまり差がみられない。
 
 % 図3はSeq2Treeについて、木の大きさと正確さをプロットしたグラフである。
 
 % (TODO)seq2seq、アテンション付きseq2seq、seq2treeとバイナリそのまま/逆アセンブル後 の6パターンのデータを出す。
 
+% Figure~\ref{fig:csrs_lens} and figure~\ref{fig:ast_lens} show 学習に用いたデータセットについて、C言語のトークン列としてみたときのデータ長とAST tree として見たときの action size をそれぞれグラフにしてプロットしたものである。
+% 全体的に、
 
-\chapter{Discussion}
-結果より、まずattention機構によって有意に精度が向上することが確認できた。
-しかしながら、 seq2seq と seq2tree の間に
+
+
+
+% \chapter{Discussion}
+% 結果より、まずattention機構によって有意に精度が向上することが確認できた。
+% しかしながら、 seq2seq と seq2tree の間に
 
 
 \chapter{Conclusion}

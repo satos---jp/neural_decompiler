@@ -9,6 +9,7 @@
 *.npz
 *.objd
 *.parsed
+*.xbb
 __pycache__/
 build/
 .gdb_history
