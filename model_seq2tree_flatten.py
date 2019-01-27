@@ -44,8 +44,15 @@ class Seq2Tree_Flatten(chainer.Chain):
 		
 		self.choicerange = []
 		self.choice_idx = []
+		self.is_trivial = []
 		s = 0
 		for d in self.trans_data:
+			ist = len(d)<=1
+			self.is_trivial.append(ist)
+			if ist:
+				self.choicerange.append(None)
+				self.choice_idx.append([0])
+				continue
 			b = s
 			s += len(d)
 			self.choicerange.append((b,s))
@@ -95,6 +102,8 @@ class Seq2Tree_Flatten(chainer.Chain):
 		ys_in_0  = [xp.array(list(map(lambda ab: ab[0][0],y))) for y in ys]
 		ys_in_1  = [xp.array(list(map(lambda ab: ab[0][1],y))) for y in ys]
 		ys_out = [xp.array(list(map(lambda ab: self.choice_idx[ab[0][1]][ab[1]],y))) for y in ys]
+		ys_conds = [xp.array(list(map(lambda ab: self.is_trivial[ab[0][1]],d)),dtype=xp.bool) for d in ys]
+		#print(ys_conds)
 		#ys_out = [xp.array(list(map(lambda ab: ab[1],y))) for y in ys]
 		
 		# Both xs and ys_in are lists of arrays.
@@ -128,8 +137,11 @@ class Seq2Tree_Flatten(chainer.Chain):
 		
 		concat_os = F.concat(att_os, axis=0)
 		concat_ys_out = F.concat(ys_out, axis=0)
-		loss = F.sum(F.softmax_cross_entropy(
-			self.Ws(concat_os), concat_ys_out, reduce='no')) / batch
+		concat_cond = F.concat(ys_conds, axis=0)
+		sxe = F.softmax_cross_entropy(self.Ws(concat_os), concat_ys_out, reduce='no')
+		sxec = F.where(concat_cond,xp.zeros(sxe.shape,dtype=xp.float32),sxe)
+
+		loss = F.sum(sxec) / batch
 		#print('lossed')
 		chainer.report({'loss': loss}, self)
 		#n_words = concat_ys_out.shape[0]

@@ -30,6 +30,14 @@ __NAMES__
   showstringspaces=false
 }
 
+\lstdefinestyle{Csample}{
+  language=C,
+  tabsize=2,
+}
+
+\lstdefinestyle{Asmsample}{
+  tabsize=2,
+}
 
 \lstset{%
   basicstyle={\small},%
@@ -37,10 +45,10 @@ __NAMES__
   keywordstyle={\small\bfseries},%
   % style={myCustomMatlabStyle},
   stringstyle={\small\ttfamily},
-  frame={tb},
+  %frame={tb},
   breaklines=true,
   columns=[l]{fullflexible},%
-  numbers=left,%
+  % numbers=left,%
   xrightmargin=0zw,%
   xleftmargin=3zw,%
   numberstyle={\scriptsize},%
@@ -98,6 +106,9 @@ Therefore, we implemented sequence-to-tree model, which is suggested in \cite{Se
 従来法の何が悪いのかを説明する．たぶんした。
 (TODO)このあとに今回やる更に具体的な内容とその成果についてが入る。
 
+TODO(satos)
+
+
 \section{Related Works}
 In this section, we review related works.
 
@@ -109,6 +120,8 @@ In \cite{Motoneta}, they used the seqence-to-sequence approach, which is a popul
 
 In \cite{genetic_decompiler}, they applied genetic programming to decompilation.
 They prepared big corpus of C source codes, and they repeatedly mutated C code to reduce the difference of the target binary and the compilation result of the source code. 
+
+TODO(satos)
 
 
 
@@ -131,14 +144,20 @@ ands G has a name related to {\sl pop}.
 In that paper, they tried to estimate the name of a variable which appears in the decompilation result of a compiled C program.
 
 This kind of name estimation also appears in the context of deobfuscation.
-要参考文献
+\cite{deobfsucation_matome}
+% これ雑にreferenceしたけどあんま意味ないよなぁ...?
 Deobfuscation is a reverse process of obfuscation.
 Obfuscation is a technique to modify the program source code so that the code becomes hard to understand for humans. 
 Obfuscation is used for hiding the behavior of a program whose source code has to be distributed.
 For example, in the web application, a JavaScript code of a program should be distributed in order to be executed on client web browsers.
-To protect the program from cracking, the JavaScript code is sometimes minified. All comments, newlines, indents are removed and variable names are substituted to automatically generated meaningless names.
+To protect the program from cracking, the JavaScript code is sometimes minified. All comments, newlines, indents are removed and variable names are substituted to automatically generated meaningless names. 
 
 \cite{JSNaughty} applied statistical machine translation for this task. 
+
+TODO(satos)
+
+変数の性質から統計情報を取り出し、それを元に
+
 They calculated estimated the name of the variable by the functionality of it
 
 \subsection{Neural Network for Program Generation}
@@ -283,8 +302,9 @@ When the token $sy_{m+1}$ is the $ EOS $ token, generating process is stopped an
 % (TODO) このへんで 図を入れる
 % (TODO) 理由/気持ち について述べたいですね。
 
-
-In addition to 
+The foregoing is the basic structure of the sequence-to-sequence model.
+To improve the performance of the model, there are some devices for the model.
+In the following, we introduce two devices, which are used in our experiment.
 
 First is the Bidirectional Reccurent Neural Networks (BRNN) is the architecture introduced in \cite{BiRNN}.
 In the experiment, this architecture is used for the encoder network as follows.
@@ -293,12 +313,19 @@ in accordance with the recursive formula $ enc_{k}^{\gets} = lstm_{enc}^{\gets}(
 Then both of the internal states $ enc_{n} $ and $ enc_{1}^{\gets} $ are used for decoder network.
 
 Second is the multi-layer reccurent neural networks, introduced in ここ決める.
-It is reported that, instead of the output of the LSTM units to another LSTM units will improve the accuracy of the prediction.
-This architecture is called as stucked reccurent neural networks or multi-layer reccurent neural networks.
+
+LSTMの出力を別のLSTMに入力して
+
+TODO(satos)
+
+
+
+% It is reported that, instead of the output of the LSTM units to another LSTM units will improve the accuracy of the prediction.
+% This architecture is called as stucked reccurent neural networks or multi-layer reccurent neural networks.
 
 
 \subsection{Attention}
-Attention is a extension module of sequence-to-sequence model to improve the quality of translation. 
+Attention is a extension module for sequence-to-sequence model to improve the quality of translation. 
 Simple sequence-to-sequence model has a problem that the length of the encoded vector $enc_{n}$ is fixed 
 regardless of the length of the input sequence $sx$. 
 Therefore, the longer the length of the input becomes, the more likely the information of the input will be lost.
@@ -306,20 +333,34 @@ This problem is eased by using the information in the encoding network when deco
 
 The attention module is first developed in \cite{attention_paper}.
 We inplemented the global general attention, which is intoduced in \cite{dot_attention}, for improving the quality of decompilation.
-In this subsection, we will describe about the global general attention.
+In the following, we will describe about the global general attention.
+
+The model with attention
+
+TODO(satos)
+
+アテンション機構を用いる場合、前述したようにdecoder networkの出力 $ dec_{k} $ をそのまま用いて分布をesitmateするのではなく、
+$ dec_{k} $ と encoder network の出力 $ enc_{1} \dots enc_{n} $ (encoder が BiLSTMの場合 $ enc^{\gets}_{1} \dots enc^{\gets}_{n} $ も)
+を用いて context vector $ ctx_{k} $ を生成し、 $ dec_{k} $ と $ ctx_{k} $ によって条件付き分布をesitmateする。
+
+$ ctx_{k} $ は、 $ enc_{1} \dots enc_{n} $ の加重平均によって計算される。 具体的には、
+各状態 $ enc_{l} $ について その状態のスコア $ a_{l} = score(dec_{k},enc_{l}) $ を計算し、
+$ ctx_{k} = \sum_{l=1}^{n} \frac{\exp{a_{l}}}{\sum_{l=1}^{n}\exp{a_{l}}} enc{l} $ として計算される。
+
+この $ ctx_{k} $ を併せて用いることにより、 分布予測時に入力データの情報にアクセスすることができ、精度の向上が見込める。
 
 
-In the pure sequence-to-sequence model, the conditional probability  $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ is calculated from $ dec_{k} $ ,which is the internal state of the decoder network.
-In the sequence-to-sequence with attention model, the probability is calcutated from $ dec_{k} $ and the context vevctor $ c_{k} $.
-$ c_{k} $
+% In the pure sequence-to-sequence model, the conditional probability  $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ is calculated from $ dec_{k} $ ,which is the internal state of the decoder network.
+% In the sequence-to-sequence with attention model, the probability is calcutated from $ dec_{k} $ and the context vevctor $ c_{k} $.
+% $ c_{k} $
 
 
-After generating $ dec_{k} $, the context vector $ c_{k} $ is calculated from the hidden states $ enc_{1} \dots enc_{n} $.
+% After generating $ dec_{k} $, the context vector $ c_{k} $ is calculated from the hidden states $ enc_{1} \dots enc_{n} $.
 
-$ c_{k} = \sum_{k=1}^{n} $ 
+% $ c_{k} = \sum_{k=1}^{n} $ 
 
-The attentional hidden state $ dec'_{k} $ is calculated from the $ dec_{k} $ and $ c_{k} $.
-Then, the probability $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ is estimated as $ softmax(W_{dec}(dec'_{k}))$, instead of $ softmax(W_{dec}(dec_{k}))$.
+% The attentional hidden state $ dec'_{k} $ is calculated from the $ dec_{k} $ and $ c_{k} $.
+% Then, the probability $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ is estimated as $ softmax(W_{dec}(dec'_{k}))$, instead of $ softmax(W_{dec}(dec_{k}))$.
 
 
 
@@ -337,25 +378,32 @@ The encoder network of sequence-2-tree model is the same as the encoder network 
 
 The decoder network is a network for generating tree structured output. 
 A tree-structure is representable by the sequence of the actions which expands a nonterminal symbol of the constructing tree.
-Suppose the tree $ty$ is generated by the action sequence $ [a_1, \dots a_m] $, 
-where $ a_k $ is the action which expands left-most symbol of the nonterminal symbol in the tree generated by the action sequence $ [a_1, \dots a_{k-1}] $. 
-Then, the tree-generating probability $ p(ty|sx) $ is decomposed to $ \prod_{k=1}^n p(a_k|sx,[a_1, \dots a_{k-1}]) $, 
+Suppose the tree $ty$ is generated by the action sequence $ [act_1, \dots act_m] $, 
+where $ act_k $ is the action which expands left-most symbol of the nonterminal symbol in the tree generated by the action sequence $ [act_1, \dots act_{k-1}] $. 
+Then, the tree-generating probability $ p(ty|sx) $ is decomposed to $ \prod_{k=1}^n p(act_k|sx,[act_1, \dots act_{k-1}]) $, 
 so the sequence-to-sequence model is now applicable for generating tree structure, by emmbeding each action to representing vector $av_k$ and 
-calculating $ LSTM_{dec}(dec_{k},av_{k}) $ for estimating $p(a_{k+1}|sx,[a_1, \dots a_{k}]) $.  
+calculating $ LSTM_{dec}(dec_{k},av_{k}) $ for estimating $p(act_{k+1}|sx,[act_1, \dots act_{k}]) $.  
 
 % In algorithmic parspective, the inference of the seq2seq model tries to generate sequence one by one, from the first token to the last.
 % The Seq2Tree model also tries to generate tree structure one by one, with depth-first order.
 % The inference of the SeqTree model starts from the start symbol, and recursively expand the nonterminal symbols in depth-first order.
 
-In the paper, they additionaly tries to use the information which is peculiar to the tree structure. 
+In that paper, they additionaly tries to use the information which is peculiar to the tree structure. 
 For expanding the node $d$, they also use the information of node type $ nf_{d} $ and the parent action $p_{d}$ from which $d$ is generated.
-And they calculalte $ LSTM_{dec}(dec_{k},[av_{k}; nfv_{d}; pv_{d}; ctx_{k}]) $ instead of $ LSTM_{dec}(dec_{k},av_{k}) $, 
-where $nfv_{d},pv_{d}$ are the vector embedding of $nf_{d},p_{d}$, and $ctx_{k}$ is the attention at k.
+And they calculalte $ LSTM_{dec}(dec_{k},[av_{k}; nfv_{d}; pv_{d}]) $ instead of $ LSTM_{dec}(dec_{k},av_{k}) $, 
+where $nfv_{d},pv_{d}$ are the vector embedding of $nf_{d},p_{d}$.
 
 They also used devised method for generating terminal symbols, because they need to copy the name of some variables from the program specification.
-But in our case, we don't need copy the information from the input, because the name information is lost when compiling, so we omit the discriptionp of this copy method.
+However, in our case, we don't need copy the information from the input, because the name information is lost when compiling.
+Nevertheless, it is found from the experiments that our decompilers often fail to recover the constant values in the programs.
+Therefore, implementing the copying method is left for future work.
 
+% しかしながら、実験の結果、ソースコード中の定数に関しては復元が困難であることが観察された。このため、プログラム中の定数に関してこのcopy method を実装することが考えられるが、
+% これは future work とする。
 
+% \subsection{Path Decomposite Sequence-to-Tree}
+% 前述の Sequence-to-Tree は プログラムの構造を考慮しているものの、アクションをそのまま列にするのは結局プログラムの木としての構造がある程度失われてしまっているのではないかと考えられる。
+% すなわち、アクションを列に展開しているため、ある部分木からその兄弟の部分木の生成に移る際に大幅なジャンプが生じている。
 
 \chapter{Experiments}
 In this chapter, we explain the detail of the data preparetion and implementation.
@@ -366,13 +414,71 @@ The implementation source codes are avaiable at \url{https://github.com/satos---
 First, we collected source codes by crawling \cite[GitHub]{github}, cloning about 900 repositories with C language topic, 
 and recursively searched each folder to enumerate C language source code.
 From each source code, we generated pairs of C source code fragment and x64 assembly code corresponds to the C fragment.
-Some sample fragments are shown in figure~\ref{fig:pairsoffragments}. 
+Some example data pairs are shown in figure~\ref{fig:pairsoffragments}. 
+\\*
 
 \begin{figure}
-	\begin{tabular}{cc}
-		(TODO)データ対の例を載せる
+	\begin{tabular}{|l|l|} \hline
+	 C source code & x64 assembly \\ \hline 
+		\begin{lstlisting}[style=Csample]
+		r *= a;
+		\end{lstlisting}
+		&
+		\begin{lstlisting}[style=Asmsample]
+	mov eax,DWORD [rbp-0x4]
+	imul eax,DWORD [rbp-0x14]
+	mov DWORD [rbp-0x4],eax
+		\end{lstlisting} \\ \hline	
+		\begin{lstlisting}[style=Csample]
+	while(p >= 0){
+		p--;
+		r *= a;
+	}
+		\end{lstlisting}
+		&
+		\begin{lstlisting}[style=Asmsample]
+	jmp LABEL_0
+LABEL_1 :
+	sub DWORD [rbp-0x18],0x1
+	mov eax,DWORD [rbp-0x4]
+	imul eax,DWORD [rbp-0x14]
+	mov DWORD [rbp-0x4],eax
+LABEL_0 :
+	cmp DWORD [rbp-0x18],0x0
+	jns LABEL_1
+		\end{lstlisting} \\ \hline		
+		\begin{lstlisting}[style=Csample]
+int pow(int a,int p){
+	int r = 1;
+	while(p >= 0){
+		p--;
+		r *= a;
+	}
+	return r;
+}
+		\end{lstlisting}
+		&
+		\begin{lstlisting}[style=Asmsample]
+	push rbp
+	mov rbp,rsp
+	mov DWORD [rbp-0x14],edi
+	mov DWORD [rbp-0x18],esi
+	mov DWORD [rbp-0x4],0x1
+	jmp LABEL_0
+LABEL_1 :
+	sub DWORD [rbp-0x18],0x1
+	mov eax,DWORD [rbp-0x4]
+	imul eax,DWORD [rbp-0x14]
+	mov DWORD [rbp-0x4],eax
+LABEL_0 :
+	cmp DWORD [rbp-0x18],0x0
+	jns LABEL_1
+	mov eax,DWORD [rbp-0x4]
+	pop rbp
+	ret
+		\end{lstlisting} \\ \hline
 	\end{tabular}
-	\caption{Sample data fragments}
+	\caption{Example of training data pairs}
 	\label{fig:pairsoffragments}
 \end{figure}
 
@@ -442,55 +548,95 @@ The AST is used for sequence-to-Tree model dataset as it is.
 Also, the AST is converted to C token sequence for sequence-to-sequence model dataset. 
 
 \section{Model Configuration}
-The training model was implemented with Chainer. 
-We implemented three models, Seq2seq, Seq2seqWithAattention, and Seq2tree.
+The training model was implemented with Chainer version 4.5.0. (\url{https://chainer.org/})
+We implemented three models, Seq2seq, Seq2seqAtt, and Seq2tree.
 
-The encoding module was bidirectional LSTM in all of three models.
-The decoding module of Seq2seq and Seq2seqWithAattention predict the conditional probability of a next token $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
-The decoding module of Seq2tree predicts the conditional probability of a next action $ p(a_{k}|sx,[a_1, \dots a_{k-1}]) $.
+The encoder module was bidirectional LSTM in all of three models.
+The decoder module of Seq2seq and Seq2seqAtt predict the conditional probability of a next token $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $,
+while the decoder module of Seq2tree predicts the conditional probability of a next action $ p(a_{k}|sx,[a_1, \dots a_{k-1}]) $.
 
-Seq2seqWithAattention and Seq2tree have attention module, while Seq2seq have not.
+Seq2seqAtt and Seq2tree are the models with attention, while Seq2seq is not.
 
 \begin{figure}
-	\begin{tabular}{c|c}
-		Number of Layers & 4
-		%Dimensionality of Embedded Vectors & 128
+	\begin{tabular}{|c|c|c|c|}
+		\hline
+		 model & Seq2seq & Seq2seqAtt & Seq2tree \\ \hline
+		 Predict & \multicolumn{2}{|c|}{next token} & next action \\ \hline
+		 With Attention & no & \multicolumn{2}{|c|}{yes} \\ \hline
+		 Encoder & \multicolumn{3}{|c|}{Bidirectional LSTM} \\ \hline
+		Number of LSTM Layers & \multicolumn{3}{|c|}{4} \\ \hline
+		% Vector Dim & \multicolumn{3}{|c|}{128} \\ \hline
 	\end{tabular}
-	\caption{The configuration parameter of the models}
+	\caption{The configuration parameters of the models}
 	\label{fig:parameterofmodels}
 \end{figure}
 
-Figure~\ref{fig:parameterofmodels} shows the parameter of the models. 
+Figure~\ref{fig:parameterofmodels} shows the parameters of the models. 
 
+% (TODO)レイヤ数、ロスについてのべる。
 
-(TODO)レイヤ数、ロスについてのべる。
-
-\section{Training and Testing}
+\section{Model Training}
 % 91 words
 We trained the model to reduce the cross-entropy loss between predicted and actual conditional probability.
 The conditional probability is the probability of next token $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ for sequence-to-sequence model, 
 and the probability of next action $p(a_{k+1}|sx,[a_1, \dots a_{k}]) $ for sequence-to-tree model.
 
-We calculated the quality of the decompilation by two metrics, edit distance ratio and BLEU.
+For the optimizer of the training, we used Adam, which is introduced in \cite{Adam}.
+The paremeters of Adam are $ (\alpha,\beta_1,\beta_2) = (0.001,0.9,0.999) $, which are the default parameters of Chainer version 4.5.0.
+% 学習の際のoptimizerにはAdam(文献)を用いた。
+
+\section{Model Evaluation}
+We evaluated the quality of the decompilation by two metrics, edit distance ratio and BLEU.
 
 Edit distance ratio is the metrics for the correctness of the decompilation result.
 Here, the edit distance ratio between two strings means the Levenshtein distance divided by the longer length of the strings.
 Idealy, the correctness of the decompilation result should be measured by the distance of the meaning of the program.
 However the decompilation result is usually uncompilable, so we used the edit distance of the source codes as the approximation of the correctness.
 
-BLEU is the metrics for the naturallity of the generated program. 
+BLEU is the metrics for the similality of the ground truth and the decompilation result. 
 It is first introduced in \cite{BLEU}, for evaluating the performance of the machine translation.
+BLEU is calculated from the sets of the n-gram for each sentense. 
+If the two sentens has similar n-gram sets, the BLEU score becomes higher.
+In our case, it means that the decompilation result is more similer to the program written by human, that is, more human intelligible.
 
+% 2つの文のn-gram集合が似ているほど、BLEUスコアは高くなります。今回の場合はデコンパイル結果がより人間らしい自然な出力となっていることを意味します。
 
+In the experiment, we normalized variable names in the source codes by renaming. 
+% 補足として、今回は edit distance と BLEU を計算する際に、変数名を先頭から順に順番に付け直すことにより、ソースコード中の変数名の付けなおしを行っている。
+% これはプログラムの意味は変数名に依らないためである。
 
 \chapter{Results}
 
-We tested three models. 
-Seq2seq is a model with  
+TODO(satos)
 
 
-(TODO)seq2seq、アテンション付きseq2seq、seq2treeとバイナリそのまま/逆アセンブル後 の6パターンのデータを出す。
+まず先に、学習に用いたデータ長の分布を Figure~\ref{fig:editdist} に示す。
+ソースコードの部分木を全て列挙するデータ生成法の性質上、長さの短いコード辺が極端に多いことが確認できる。
+
+% We tested three models. 
+
+今回、それぞれのモデルの学習には、東京大学のreedbushを用い、各モデルについて4時間学習させた。
+
+精度計測では、各モデルに対して テストケースから100個のデータをランダムに取り出して翻訳させ、それらの編集距離とBLEU値の平均を計測した。
+
+% 図1は各モデルについて、学習に用いたデータ数と編集距離をプロットしたグラフである。
+% 図2は各モデルについて、学習に用いたデータ数と編集距離をプロットしたグラフである。
+Figure~\ref{fig:editdist} shows the relation of trainig data size and the edit disatnce for each models.
+Figure~\ref{fig:bleu} shows the relation of trainig data size and the BLEU score for each models.
+
+図1からわかるように、attention付きのネットワークとそうでないネットワークの間には有意に差が存在しているが、
+Seq2seqWithAattention,Seq2Tree の間にはあまり差がみられない。
+
+% 図3はSeq2Treeについて、木の大きさと正確さをプロットしたグラフである。
+
+% (TODO)seq2seq、アテンション付きseq2seq、seq2treeとバイナリそのまま/逆アセンブル後 の6パターンのデータを出す。
+
+
 \chapter{Discussion}
+結果より、まずattention機構によって有意に精度が向上することが確認できた。
+しかしながら、 seq2seq と seq2tree の間に
+
+
 \chapter{Conclusion}
 
 \bibliographystyle{plainnat}

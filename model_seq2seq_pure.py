@@ -92,6 +92,7 @@ class Seq2seq(chainer.Chain):
 			result = []
 			
 			for i,hxs in enumerate(xs_outputs):
+				print('translate',i)
 				nhx,ncx = hx[i],cx[i]
 				ncx = F.reshape(ncx,(ncx.shape[0],1,ncx.shape[1]))
 				nhx = F.reshape(nhx,(nhx.shape[0],1,nhx.shape[1]))
@@ -99,11 +100,16 @@ class Seq2seq(chainer.Chain):
 				
 				for j in range(self.n_maxlen):
 					to_beam = []
-					for r,(kd,v,nhx,ncx) in beam_data:
+					for ci,(r,(kd,v,nhx,ncx)) in enumerate(beam_data):
+						if len(kd)>0 and kd[-1]==EOS_DST:
+							to_beam.append((r,(kd,v,nhx,ncx)))
+							if ci == 0:
+								break
+							continue
 						#print(v.shape)
 						thx,tcx,ys = self.decoder(nhx,ncx,[v])
 						yh = ys[0]
-						wy = self.Ws(yh).data[0]
+						wy = self.W(yh).data[0]
 						wy = F.reshape(F.log_softmax(F.reshape(wy,(1,self.n_target_vocab))),(self.n_target_vocab,)).data
 						#print(wy.shape)
 						to_beam += [(r+nr,(kd + [i],ivs[i],thx,tcx)) for i,nr in enumerate(wy)]

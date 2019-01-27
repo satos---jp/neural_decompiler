@@ -7,6 +7,8 @@
 *.out
 *.lprof
 *.npz
+*.objd
+*.parsed
 __pycache__/
 build/
 .gdb_history

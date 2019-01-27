@@ -41,6 +41,7 @@ if isgpu:
 else:
 	xp = np
 
+
 class Asm_csrc_dataset(chainer.dataset.DatasetMixin):
 	def __init__(self):
 		super(Asm_csrc_dataset,self).__init__()
@@ -94,6 +95,8 @@ def init_seq2seq():
 		asm_vocab = pickle.load(fp)
 	
 	dataset = Asm_csrc_dataset()
+	print('load dataset')
+	print(len(dataset))
 	
 	v_eos_src = len(asm_vocab)
 	asm_vocab += ['__EOS_ASM_']
@@ -102,9 +105,13 @@ def init_seq2seq():
 	v_eos_dst = len(c_vocab)
 	c_vocab += ['__EOS_C_']
 	dst_vocab_len = len(c_vocab)
- 
-	model = Seq2seq(n_layer, src_vocab_len, dst_vocab_len , n_unit, v_eos_dst, n_maxlen)
-	#model = Seq2seq_with_GlobalAtt(n_layer, src_vocab_len, dst_vocab_len , n_unit, v_eos_dst, n_maxlen)
+ 	
+	if modelname == 'seq2seq':
+		model = Seq2seq(n_layer, src_vocab_len, dst_vocab_len , n_unit, v_eos_dst, n_maxlen)
+	elif modelname == 'seq2seq_att':
+		model = Seq2seq_with_GlobalAtt(n_layer, src_vocab_len, dst_vocab_len , n_unit, v_eos_dst, n_maxlen)
+	else:
+		assert False
 	#serializers.load_npz('iter1000_seq_att.npz',model)
 	#serializers.load_npz('save_models/models_prestudy_edit_dist_0.65/iter_47600__edit_dist_0.691504__time_2018_12_28_01_36_30.npz',model)
 	if not isgpu:
@@ -124,8 +131,8 @@ def init_seq2seq():
 		nonlocal logt,model,optimizer
 		if isgpu:
 			model.to_cpu()
-		serializers.save_npz('seq2seq/models/iter_%s_time_%s.npz' % (logt,getstamp()),model)
-		serializers.save_npz('seq2seq/optimizers/iter_%s_time_%s.npz' % (logt,getstamp()),optimizer)
+		serializers.save_npz(modelname + '/models/iter_%s_time_%s.npz' % (logt,getstamp()),model)
+		serializers.save_npz(modelname + '/optimizers/iter_%s_time_%s.npz' % (logt,getstamp()),optimizer)
 		if isgpu:
 			model.to_gpu(0)
 		logt += train_iter_step
@@ -144,18 +151,24 @@ class Asm_ast_dataset(chainer.dataset.DatasetMixin):
 	def __init__(self):
 		super(Asm_ast_dataset,self).__init__()
 		
-		self.len = 1000190
-		#self.len = 3200
+		#self.len = 1000190
+		self.len = 2 * 100000 # 77385
 		self.cache = []
 		self.data_idx = []
 		
-		self.get_example = self.data_range(0,100)
-		self.get_test = self.data_range(100,120)
+		if modelname == 'seq2tree_cutoff':
+			self.get_example = self.data_range(0,2)
+			self.get_test = self.data_range(2,3)
+		else:
+			self.get_example = self.data_range(0,100)
+			self.get_test = self.data_range(100,120)
 		self.useddatanum = 0
 		
 	def __len__(self):
 		return self.len
 	
+	
+	# stop until 10^3 
 	def data_range(self,a,b):
 		def gex(_):
 			self.useddatanum += 1
@@ -165,11 +178,14 @@ class Asm_ast_dataset(chainer.dataset.DatasetMixin):
 					random.shuffle(self.data_idx)
 			
 				fn = self.data_idx.pop()
-				with open('dataset_asm_ast/data_sampled_%d.pickle' % fn,'rb') as fp:
-					self.cache = pickle.load(fp)
-					#self.cache = list(map(lambda xy: (np.array(xy[0],np.int32),xy[2]),self.cache))
-					random.shuffle(self.cache)
-					
+				if modelname == 'seq2tree_cutoff':
+					fp = open('dataset_asm_ast/data_cutoff_%d.pickle' % fn,'rb')
+				else:
+					fp = open('dataset_asm_ast/data_sampled_%d.pickle' % fn,'rb')
+				self.cache = pickle.load(fp)
+				#self.cache = list(map(lambda xy: (np.array(xy[0],np.int32),xy[2]),self.cache))
+				random.shuffle(self.cache)
+			
 			res = self.cache.pop()
 			p,size,q = res
 			#if size >= 100:
@@ -203,7 +219,7 @@ train_iter_step = None
 
 
 def init_seq2tree():
-	global train_iter_step
+	global train_iter_step,modelname
 	n_layer = 4
 	n_unit = 128
 	
@@ -217,11 +233,17 @@ def init_seq2tree():
 	asm_vocab += ['__EOS__']
 	src_vocab_len = len(asm_vocab)
  
-	model = Seq2Tree_Flatten(n_layer, src_vocab_len, c_syntax_arr, n_unit, v_eos_src, n_maxsize)
-	#model = Seq2Tree(n_layer, src_vocab_len, c_syntax_arr, 64, v_eos_src, n_maxsize)
-	
+	if modelname == 'seq2tree_flatten':
+		model = Seq2Tree_Flatten(n_layer, src_vocab_len, c_syntax_arr, n_unit, v_eos_src, n_maxsize)
+	elif modelname in ['seq2tree','seq2tree_cutoff']:
+		model = Seq2Tree(n_layer, src_vocab_len, c_syntax_arr, n_unit, v_eos_src, n_maxsize)
+	else:
+		assert False
+	#print(model.translate([data.get_test(-1)[0]]))
+	#print(data.get_test(-1)[1])
 	if not isgpu:
 		#serializers.load_npz('iter1000.npz',model)
+		#serializers.load_npz('iter2200_s2t.npz',model)
 		pass
 	if isgpu:
 		model.to_gpu(0)
@@ -237,8 +259,8 @@ def init_seq2tree():
 		nonlocal logt,model,optimizer
 		if isgpu:
 			model.to_cpu()
-		serializers.save_npz('seq2tree/models/iter_%s_time_%s.npz' % (logt,getstamp()),model)
-		serializers.save_npz('seq2tree/optimizers/iter_%s_time_%s.npz' % (logt,getstamp()),optimizer)
+		serializers.save_npz(modelname + '/models/iter_%s_time_%s.npz' % (logt,getstamp()),model)
+		serializers.save_npz(modelname + '/optimizers/iter_%s_time_%s.npz' % (logt,getstamp()),optimizer)
 		if isgpu:
 			model.to_gpu(0)
 		logt += train_iter_step
@@ -254,6 +276,9 @@ def init_seq2tree():
 		"""
 	return (model,optimizer,data,translate,asm_vocab)
 
+
+modelname = 'seq2seq'
+
 import os
 def main():
 	import sys
@@ -264,25 +289,41 @@ def main():
 		cuda.get_device(0).use()
 
 	global train_iter_step 
-	#model,optimizer,dataset,translate,asm_vocab = init_seq2tree()
-	model,optimizer,dataset,translate,asm_vocab = init_seq2seq()
+	global modelname
+	if modelname in ['seq2seq','seq2seq_att']:
+		model,optimizer,dataset,translate,asm_vocab = init_seq2seq()
+	elif modelname in ['seq2tree_flatten','seq2tree']:
+		model,optimizer,dataset,translate,asm_vocab = init_seq2tree()
+	else:
+		assert False
 	"""
 	from precision import prec_seq2tree
-	prec_seq2tree(model,dataset,asm_vocab,'o.pickle')
+	serializers.load_npz('iter6400_seq2tree.npz',model)
+	prec_seq2tree(model,dataset,asm_vocab,'o4.pickle')
 	exit()
+	"""
 	
-	dns = os.listdir('reedbush/seq2tree_flatten/models/')
-	for i in range(19):
+	dns = os.listdir(modelname + '/models/')
+	for i in range(21):
 		pn = 'iter_%d_' % (i*100)
 		nfn = list(filter(lambda x: pn in x,dns))
 		assert len(nfn)==1
 		nfn = nfn[0]
-		serializers.load_npz('reedbush/seq2tree_flatten/models/' + nfn,model)
-		prec_seq2tree(model,dataset,asm_vocab,'translate_data/seq2tree_flatten/' + pn + 'transdata.pickle')
+		serializers.load_npz(modelname + '/models/' + nfn,model)
+		
+		sfn = 'translate_data/' + modelname + '/' + pn + 'transdata.pickle'
+		wds = []
+		for t in range(1):
+			#print(t)
+			ds = [dataset.get_test(-1) for _ in range(1000)]
+			results = model.translate(list(map(lambda x: x[0],ds)))
+			wds += list(zip(ds,results))
+		print('write to',sfn)
+		with open(sfn,'wb') as fp:
+			pickle.dump(wds,fp)
 	exit()
-	"""
 	
-	train_iter = chainer.iterators.SerialIterator(dataset, (1024 if isgpu else 4))
+	train_iter = chainer.iterators.SerialIterator(dataset, (1024 if isgpu else 6))
 	updater = training.updaters.StandardUpdater(train_iter, optimizer,converter=convert)
 	trainer = training.Trainer(updater, (10000000, 'epoch'), out='result')
 
