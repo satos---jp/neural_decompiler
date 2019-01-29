@@ -74,31 +74,60 @@ class Seq2seq(chainer.Chain):
 		EOS_DST = self.v_eos_dst
 		batch = len(xs)
 		
-		beam_with = 3
 		with chainer.no_backprop_mode(), chainer.using_config('train', False):
 
 			exs = sequence_embed(self.embed_x, xs)
 			hx, cx, xs_outputs = self.encoder(None, None, exs)
 			hx = F.transpose(F.reshape(F.transpose(hx,(1,0,2)),(batch,self.n_layers,self.n_units*2)),(1,0,2))
 			cx = F.transpose(F.reshape(F.transpose(cx,(1,0,2)),(batch,self.n_layers,self.n_units*2)),(1,0,2))
-			#print(hx.shape,cx.shape,(1,xs_states[0].shape))
-			#sprint(xs_states)
-			hx = F.transpose(hx,axes=(1,0,2))
-			cx = F.transpose(cx,axes=(1,0,2))
 			
-			ivs = sequence_embed(self.embed_y,list(map(lambda i: xp.array([i]),range(self.n_target_vocab))))
-			v = ivs[EOS_DST]
+			#ivs = sequence_embed(self.embed_y,list(map(lambda i: xp.array([i]),range(self.n_target_vocab))))
+			#v = ivs[EOS_DST]
 			
 			result = []
 			
-			for i,hxs in enumerate(xs_outputs):
-				print('translate',i)
+			beam_with = 3
+			vs = [xp.array([EOS_DST]) for _ in xs_outputs]
+			kds = [[] for _ in xs_outputs]
+			rs = [0.0 for _ in xs_outputs]
+			beam_data = [(rs,kds,hx,cx,vs)]
+			for j in range(self.n_maxlen):
+				#print(j)
+				to_beam = [[] for _ in range(batch)]
+				for rs,kds,nhx,ncx,vs in beam_data:
+					if type(nhx) is list:
+						#print(nhx[0].shape)
+						nhx = F.stack(nhx,axis=1)
+						ncx = F.stack(ncx,axis=1)
+						vs = list(map(lambda d: xp.array(d),vs))
+						#print(nhx.shape)
+					#print(rs,kds,nhx,ncx,vs)
+					evs = sequence_embed(self.embed_y,vs)
+					thx,tcx,ys = self.decoder(nhx,ncx,evs)
+					wy = self.W(F.concat(ys, axis=0))
+					#print(wy.shape)
+					wy = F.log_softmax(wy).data
+					#print(thx.shape)
+					thx = F.separate(thx, axis=1)
+					tcx = F.separate(tcx, axis=1)
+					#print(thx[0].shape)
+					for i in range(batch):
+						ahx,acx = thx[i],tcx[i]
+						for t,nr in enumerate(wy[i]):
+							to_beam[i].append((rs[i]+nr,kds[i] + [t],ahx,acx,[t]))
+				
+				to_beam = list(map(lambda x: sorted(x)[::-1][:beam_with],to_beam))
+				beam_data = [tuple([[to_beam[i][k][s] for i in range(batch)] for s in range(5)]) for k in range(beam_with)]
+				
+				#for i,hxs in enumerate(xs_outputs):
+				#		wy = F.reshape(F.log_softmax(F.reshape(wy,(1,self.n_target_vocab))),(self.n_target_vocab,)).data
+				#print('translate',i)
+				"""
 				nhx,ncx = hx[i],cx[i]
 				ncx = F.reshape(ncx,(ncx.shape[0],1,ncx.shape[1]))
 				nhx = F.reshape(nhx,(nhx.shape[0],1,nhx.shape[1]))
 				beam_data = [(0.0,([],v,nhx,ncx))]
 				
-				for j in range(self.n_maxlen):
 					to_beam = []
 					for ci,(r,(kd,v,nhx,ncx)) in enumerate(beam_data):
 						if len(kd)>0 and kd[-1]==EOS_DST:
@@ -118,9 +147,10 @@ class Seq2seq(chainer.Chain):
 					#print(list(map(lambda a: a[0],to_beam)))
 					beam_data = sorted(to_beam)[::-1][:beam_with]
 					#print(list(map(lambda a: a[0],beam_data)))
+				"""
 				
-				result.append(beam_data[0][1][0])			
-		
+				#result.append(beam_data[0][1][0])			
+		result = beam_data[0][1] # for i in range(batch)
 		# Remove EOS taggs
 		outs = []
 		for y in result:
@@ -128,6 +158,7 @@ class Seq2seq(chainer.Chain):
 				y = y[:y.index(EOS_DST)]
 			#print(y)
 			outs.append(y)
+		print(xs,outs)
 		return outs
 	
 	

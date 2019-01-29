@@ -20,6 +20,8 @@ __NAMES__
 \usepackage{url}
 \usepackage{natbib}
 \usepackage[dvipdfmx]{graphicx}
+\usepackage{framed}
+\usepackage{caption}
 
 \lstdefinestyle{myCustomMatlabStyle}{
   language=C,
@@ -34,11 +36,21 @@ __NAMES__
 \lstdefinestyle{Csample}{
   language=C,
   tabsize=2,
+ 	framesep=5pt,
 }
 
 \lstdefinestyle{Asmsample}{
   tabsize=2,
+  framesep=5pt,
+  %frame=none,
 }
+
+\lstdefinestyle{ForDecomp}{
+  tabsize=2,
+  frame=l,
+  framesep=5pt
+}
+
 
 \lstset{%
   basicstyle={\small},%
@@ -46,9 +58,9 @@ __NAMES__
   keywordstyle={\small\bfseries},%
   % style={myCustomMatlabStyle},
   stringstyle={\small\ttfamily},
-  %frame={tb},
   breaklines=true,
   columns=[l]{fullflexible},%
+  % frame={tb},
   % numbers=left,%
   xrightmargin=0zw,%
   xleftmargin=3zw,%
@@ -56,7 +68,7 @@ __NAMES__
   stepnumber=1,
   numbersep=1zw,%
   lineskip=-0.5ex,%
-  captionpos=b
+  captionpos=b,
 }
 
 
@@ -70,6 +82,7 @@ More specifically, we propose to use recurrent neural networks with attention,
 which have been demonstrated to be useful for machine translation. 
 In experiments, we use source codes collected from open source projects and their binary data for training and evaluating the neural networks.
 From the experiment, we can observe little improvement in the decompilation result with the use of attention.
+However, the results were not applicable for practical use.
 
 \end{eabstract}
 \begin{jabstract}
@@ -78,7 +91,7 @@ From the experiment, we can observe little improvement in the decompilation resu
 そこで本論文では、統計的機械翻訳の技術を逆コンパイラに用いた、解析者にとってわかりやすいソースコードを出力する逆コンパイラを提案する。
 具体的には、機械翻訳において有用とされる注意機構付き再帰型ニューラルネットワークを用いる。
 実験では、オープンソースプロジェクトから収集したソースコードとそのバイナリデータを用いてニューラルネットワークを学習し、その性能を検証した。
-実験の結果、注意機構を用いることににより、逆コンパイル結果における若干の精度向上が認められた。
+実験の結果、注意機構を用いることににより逆コンパイル結果における若干の精度向上が認められたが、実用的な精度までは至らなかった。
 \end{jabstract}
 
 \maketitle
@@ -88,11 +101,13 @@ From the experiment, we can observe little improvement in the decompilation resu
 % Usually, there are two malware analysis approach, the dinamic analysis and the static analysis.
 % In the static analysys, the behavior of the malware is analyzed by 
 
-These days, the amount of malware has been increasing rapidly.
-
-要参考文献
-So the importance of developing malware analysis tools has been rising.
-要参考文献
+These days, the amount of malware has been increasing rapidly. In the report of AV-TEST Institute,
+over 100 million malwares are newly found in every year for the past five years \citep{malware_increase}.
+There are many case studies for malwareinfection \citep{malware_case_1,malware_case_2,malware_case_3,malware_case_4}.
+In those cases, they analyse malwares to assess the impact of the incident and to identify the vulnerability which causes the infection.
+% Therefore, the importance of developing malware analysis tools has been rising.
+% 要参考文献 -> つけた。
+In order to analyse malwares quickly and efficiently, there are some tools for analysing malwares \citep{mal_anal_tool}.
 One of these tools is a decompiler, which is a tool for analyzing the behavior of malware. 
 This tool generates a C-like pseudocode which represents the behavior of the malware, and analysts can infer the behavior of the malware from the pseudocode.
 This is much easier compared to analyzing raw binary codes.
@@ -101,42 +116,45 @@ However, sometimes a decompiler generates an unstructured code, which requires u
 This is due to flexibility of the high level language. If the decompiler chooses a human-friendly representation of the language as a result of decompiling, we can analyze malware with less effort. 
 
 In this thesis, we apply neural networks to the problem of decompilation to generate human-friendly pseudocodes. 
-This idea is originated from \cite{Motoneta}, in which they used recurrent neural networks.
-They used sequence-to-sequence model, which ignores the structure of the C language code. 
-Therefore, we implemented sequence-to-tree model, which is suggested in \cite{Seq2Tree}, for generating structured C language source code 
-結果が向上していれば(and improving the decompilation accuracy.)といいたい。
+This idea is originated from \cite{Motoneta}, in which they used recurrent neural networks, in particular sequence-to-sequence model, for decompilation.
+However, their model does not seem to have some features for improving the quality of decompilation.
+Therefore, we implemented the attention mechanisme, which is introduced in \cite{dot_attention}, for improving the quality.
+Additionaly, the sequence-to-sequence model, which they used for modeling, ignores the structure of the C language code.
+Therefore, we also implemented the sequence-to-tree model, which is suggested in \cite{Seq2Tree}, for generating structured C language source code.
 
-従来法の何が悪いのかを説明する．たぶんした。
-(TODO)このあとに今回やる更に具体的な内容とその成果についてが入る。
+In the experiment, we tested three models, the basic sequence-to-sequence model, the sequence-to-sequence model with attention and the sequence-to-tree model.
+As the result of the experiment, the attention mechanism showed little improvemtn in the performance, while the sequence-to-tree does not.
+Unfortunately, the results were not applicable for practical use, because the most of decompilation results were incorrect.
 
-TODO(satos)
+% In the following part of the paper, we explain the 
 
-
-\section{Related Works}
+\chapter{Related Works}
 In this section, we review related works.
 
-\subsection{Decompilation with Machine Learning}
+\section{Decompilation with Machine Learning}
 
-Because perfect decompilation is naturally impossible, there are many machine learning applications for decompilation.
+Because perfect decompilation is naturally impossible, there are some machine learning applications for decompilation.
 
-In \cite{Motoneta}, they used the seqence-to-sequence approach, which is a popular technique in the machine translation.
+In \cite{Motoneta}, they used the seqence-to-sequence model, which is a popular technique in the machine translation.
+The seqence-to-sequence model is also evaluated in this thesis.
 
 In \cite{genetic_decompiler}, they applied genetic programming to decompilation.
 They prepared big corpus of C source codes, and they repeatedly mutated C code to reduce the difference of the target binary and the compilation result of the source code. 
 
-TODO(satos)
-
-
+% TODO(satos)
 
 % Compiler and Optimization Level Estimation for Improving Anti-malware Technologies
 
 % 
 
-\subsection{Improvement of decompilation results}
-In this section, we do not try to recover the function name and variable name. 
+\section{Improvement of decompilation results}
+In this thesis, we do not try to recover the function name and variable name. 
 However, for hand-decompilation, sometimes the name can be estimated by the functionality of the variable.
-要参考文献
-For example, assume there is a variable X which seems to have a C struct type and has two fields P and Q.
+For example, \cite{hand_decompilation} used Boomerang decompiler and repeatedly fixed variable types and names of the decompilation results 
+to recover the source code of a software.
+
+Here, we show a example of the name estimation.
+Assume there is a variable X which seems to have a C struct type and has two fields P and Q.
 Also, there are two functions F and G which operate with X. 
 The function F receives X and another value V, assigns V to the memory indicated by P, adds 8 to P and increases Q. 
 The function G receives X, subtracts 8 from P, decreases Q, and returns the value indicated by P.
@@ -156,14 +174,12 @@ For example, in the web application, a JavaScript code of a program should be di
 To protect the program from cracking, the JavaScript code is sometimes minified. All comments, newlines, indents are removed and variable names are substituted to automatically generated meaningless names. 
 
 \cite{JSNaughty} applied statistical machine translation for this task. 
+They calculated the future value of a variable from its functionality, then 
+sought the most suitable name from the candidates generated from the corpus.
 
-TODO(satos)
+% 変数の性質から統計情報を取り出し、それを元に
 
-変数の性質から統計情報を取り出し、それを元に
-
-They calculated estimated the name of the variable by the functionality of it
-
-\subsection{Neural Network for Program Generation}
+\section{Neural Network for Program Generation}
 
 There are many applications of neural networks for program synthesis. They are summurized in \cite{deep_programming_matome}.
 
@@ -181,58 +197,107 @@ and the neural network models used in the experiment.
 
 % 320 words.
 
-A compiler is a program which compiles source code written in language X to other language Y. 
-Usually, X is high-level language and Y is relatively low-level language. 
-For example, clang compiler translates C language to x64 assembly language, javac compiler translates Java to Java virtual machine code.
+A compiler is a program which compiles a source code written in language X to another language Y. 
+% 文献 Usually, X is a high-level language and Y is relatively a low-level language. 
+For example, a Clang compiler translates the C language to the x64 assembly language, a javac compiler translates Java to a Java virtual machine code.
+This process is usually 
 
-A decompiler is a program which aims to reverse the process of a compiler, retrieve a source code of the high-level language X from the source code of the low-level language Y. 
-This reversing process is usually insufficient or impossible.
-This is because many informaition, such as variable name or function name, are lost when compiling.
-Additionally, the program structure described in the high level language are lost too. 
-For example, a simple {\sl for statement} can be represented by the combination of a {\sl while statement} and an {\sl if statement}, or the combination of {\sl if statement} and {\sl goto statement}. 
-So a decompiler can't distinguish their representation difference, despite in the real situation {\sl for statement} are often used and {\sl goto statement} are rarely. 
 
-Existing decompilers are made up with many steps similar to compilers. 
-They find patterns in binary data, convert them to more high-level structure, and chain them so that they finally generate high-level psudecode.
-Their output psudecodes are sometimes wrong or hard to understand.
+A decompiler is a program which aims to reverse the process of a compiler, retrieving a source code of the high-level language X from a source code of a low-level language Y. 
+% 文献
+Especially, 
+This reverse process is usually insufficient or impossible.
+This is because a lot of informaition, such as variable names or function names, are lost when compiling.
+Additionally, the program structure described in the high level-language is lost too. 
+For example, a simple \texttt{for} statement can be represented by the combination of a \texttt{while} statement and an \texttt{if} statement, or the combination of \texttt{if} statement and \texttt{goto} statement. 
+So a decompiler cannot distinguish the difference in their representations, 
+although in the real situation \texttt{for} statement are often used and \texttt{goto} statement are rarely used.
 
-% https://github.com/torvalds/linux/blob/70c25259537c073584eb906865307687275b527f/lib/rbtree.c#L528
 
+% これについてちゃんと書く。
+% Their output psudecodes are sometimes wrong or hard to understand.
 
 % (DONE)表がはみ出しているのでどうにかした。
+
+% \let\oldlstinputlisting\lstinputlisting
+% \renewcommand{\lstinputlisting}[2][]{\oldlstinputlisting[frame=lines,#1]{#2}}
 
 \begin{figure}
 	\begin{tabular}{cc}
 		\begin{minipage}[c]{0.5\hsize}
-			\lstinputlisting[title={sample C source code},breaklines=false]{bintree.c}
+		\begin{framed}
+			\lstinputlisting[breaklines=false]{insert_list.c}
+			\end{framed}
+			\caption*{Sample C source code}
 		\end{minipage}
 		\\
-		\begin{minipage}[c]{0.5\hsize}
-			\lstinputlisting[title={result of the Hopper Decompiler}]{hopper.c}
+		\begin{minipage}[c]{0.5\hsize} %title={Result of the Hopper Decompiler}
+			\begin{framed}
+			\lstinputlisting[]{snowman.c}
+			\end{framed}
+			\caption*{Result of the Snowman Decompiler}
 		\end{minipage}
 		\begin{minipage}[c]{0.5\hsize}
-			\lstinputlisting[title={result of the Snowman Decompiler}]{snowman.c}
+			\begin{framed}
+			\lstinputlisting[]{recstudio.c}
+			\end{framed}
+			\caption*{Result of the REC Studio Decompiler}
 		\end{minipage}
 	\end{tabular}
 	\vspace*{-0.6cm}
-	\caption{ decompilation results of existing decompilers for C source code}
+	\caption{Decompilation results of existing decompilers for C source code}
 	\label{fig:cw}
 \end{figure}
 
+Figure~\ref{fig:cw} shows an example of decompilation results of the Snowman decompiler version v0.1.3 and the REC Studio decompiler version 4.1 
+for a sample C language code. The sample C code is compiled by the GNU C Compiler version 4.8.5, with the optimization level \texttt{-O0}.
+The REC decompiler missed the structure of the variable \texttt{root}.
+It also failed to estimate the number of arguments and the return value of the function.
+The Snowman Decompiler succeeded to reconstruct the structure of the variable as \texttt{struct s0}.
+It also succeeded to estimate the number of arguments and the return value as the semantically correct expressions, 
+however the statement \texttt{return 0;} is reconstructed to the complex combination of statements.
 
-Figure~\ref{fig:cw} shows the example decompilation results of the Hopper disassembler and the snowman decompiler 
-for a sample C language code.
-The Hopper decompiler fails to detect while statements, and the variable {\sl now} is incorrectly analyzed.
-The output of snowman seems rather correct, as type {\sl struct tree} is reconstructed to {\sl struct s0}, 
-and the {\sl if} statement and {\sl while} statement are correctly restored. 
-However, it fails to detect the function epilogue, and the {\sl free} function call is incorrectly analyzed.
-Ideally, the decompilers can find correct function ranges and structure of statements, but they failed.
+These incorrect or verbose results might be due to missing patterns in the assembly codes. 
+Existing decompilers are made up with many steps similarly to compilers \citep{decompiler_path,hex_rays}.
+In each step, a decompiler finds patterns in binary data, converts them to more high-level structure.
+However, covering all patterns might be hardly impossible, since there are many compilers and compiler optimizations.
+文献欲しいが見当たらない...
+
+Therefore, applying statical machine 
+
+
+% These patterns comprehensive 
+
+% The pathes are made up of 
+
+% The \texttt{for} statement in the C source code is 
+% reconstructed to the combination of the \texttt{while} statement and the {\sl if} statement in both decompiler results.
+
+% This is the example of the impossibleness of the perfect decompilation, what we mentioned.
+
+
+
+% However, there are many patterns 
+
+
+
+% Existing decompilers are made up with many steps similarly to compilers. \citep{hex_rays,}
+% They find patterns in binary data, convert them to more high-level structure, and chain them so that they can finally generate a high-level psudecode.
+
+
+
+% このへん嘘書いてたので修正。
+% The Hopper decompiler fails to detect while statements, and the variable {\sl now} is incorrectly analyzed.
+% The output of snowman seems rather correct, as type {\sl struct tree} is reconstructed to {\sl struct s0}, 
+% and the {\sl if} statement and {\sl while} statement are correctly restored. 
+% However, it fails to detect the function epilogue, and the {\sl free} function call is incorrectly analyzed.
+% Ideally, the decompilers can find correct function ranges and structure of statements, but they failed.
 
 
 \section{Problem Settings}
 
 % 189
-In this paper, we try to apply statistical approach, specifically SMT (statistical machine translation) technique, for decompilation.
+In this thesis, we try to apply statistical approach, specifically SMT (statistical machine translation) technique, for decompilation.
 The decompilation problem is formulated as follows. 
 
 Given $sx = [sx_1, \dots, sx_n] $ as a tokenized sequence of the source code of domain language X, compiler generates $sy$ as a code of target language Y with probability $p(sy|sx)$.
@@ -268,7 +333,7 @@ Roughly speaking, LSTM unit recieves two input vectors,
 the one represents the internal state of the LSTM, and the other is the input for the LSTM unit, 
 and LSTM emits one output vectors, which represents the next internal state of the LSTM.
 
-\subsection{Seq-to-Seq}
+\subsection{Sequence-to-Sequence}
 % This model is called seq2seq (sequence to seqence) model.
 
 % 477 words.
@@ -302,6 +367,9 @@ $ softmax(W_{dec}(dec_{1}))$.
 Then, the next token $sy_2 = \argmax_{sy_1} p(sy_2|sx,[sy_2]) $ is calculated from $ dec_{1} $ and the vector embedding of $sy_1$, and so on.
 When the token $sy_{m+1}$ is the $ EOS $ token, generating process is stopped and the sequence $ [sy_1, \dots sy_m]$ is returned as the inference result.
 
+% ビームサーチ書く。
+% For TODO
+
 % (TODO) このへんで 図を入れる
 % (TODO) 理由/気持ち について述べたいですね。
 
@@ -316,8 +384,9 @@ in accordance with the recursive formula $ enc_{k}^{\gets} = lstm_{enc}^{\gets}(
 Then both of the internal states $ enc_{n} $ and $ enc_{1}^{\gets} $ are used for decoder network.
 
 Second is the multi-layer reccurent neural networks, introduced in \cite{multi_layer}.
+They reported that, feeding the output sequence of the LSTM network to another LSTM network, like stucking the network layers, will improve the accuracy of the prediction.
+This architecture is called as stucked reccurent neural networks or multi-layer reccurent neural networks.
 
-TODO(satos)
 
 
 % It is reported that, instead of the output of the LSTM units to another LSTM units will improve the accuracy of the prediction.
@@ -378,22 +447,32 @@ where W is the parameter matrix.
 
 \subsection{Sequence-to-Tree}
 % 184 words
-Compare to natural languages, programming languages obeys rigid grammer, wich is usually context free grammer,  
-and it is reasonable to consider the grammer of the programming language in generating programs.
-Sequence-to-Tree is a model for generating tree-structured output from sequence input. This model is introduced in \cite{Seq2Tree} for generating programs from the program specification written in natural languages. 
+Compare to natural languages, programming languages obeys rigid grammers. % wich are usually context free grammers.
+Therefore, it is reasonable to consider the grammer of the programming language when generating programs.
+Sequence-to-Tree is a model for generating tree-structured output from sequence input. 
+This model is introduced in \cite{Seq2Tree} for generating a program from a program specification written in the natural language. 
 This task is similer to our task, which aims to generate programs from the sequence of the assembly code, so we implemented this model in the experiment.
 
 Now, we will describe about the sequence-2-tree model.
 sequence-to-tree model is composed of two modules, the encoder netwrok and the decoder network.
 The encoder network of sequence-2-tree model is the same as the encoder network of sequence-to-tree model. It summerize the input sequence into one fixed length vector.
 
+\begin{figure}[]
+	\begin{center}
+	\includegraphics[height=12cm]{ast_zu.png}
+	\end{center}
+	\caption{AST representation of a C statement \texttt{b = a + 3;} }
+	\label{fig:ast_zu}
+\end{figure}
+
 The decoder network is a network for generating tree structured output. 
 A tree-structure is representable by the sequence of the actions which expands a nonterminal symbol of the constructing tree.
+For example, the tree shown in figre~\ref{fig:ast_zu} is gererated from the sequence $ [act_1, \dots act_{12}] $, 
+where action $ act_k $ expands the left-most nonterminal symbol in the tree generated from the action sequence $ [act_1, \dots act_{k-1}] $. 
 Suppose the tree $ty$ is generated by the action sequence $ [act_1, \dots act_m] $, 
-where $ act_k $ is the action which expands left-most symbol of the nonterminal symbol in the tree generated by the action sequence $ [act_1, \dots act_{k-1}] $. 
-Then, the tree-generating probability $ p(ty|sx) $ is decomposed to $ \prod_{k=1}^n p(act_k|sx,[act_1, \dots act_{k-1}]) $, 
-so the sequence-to-sequence model is now applicable for generating tree structure, by emmbeding each action to representing vector $av_k$ and 
-calculating $ LSTM_{dec}(dec_{k},av_{k}) $ for estimating $p(act_{k+1}|sx,[act_1, \dots act_{k}]) $.  
+then the tree-generating probability $ p(ty|sx) $ is decomposed to $ \prod_{k=1}^n p(act_k|sx,[act_1, \dots act_{k-1}]) $. 
+The sequence-to-sequence model is now applicable for generating tree structure, by emmbeding each action to representing vector $av_k$ and 
+calculating $ LSTM_{dec}(dec_{k},av_{k}) $ sequentially for estimating $p(act_{k+1}|sx,[act_1, \dots act_{k}]) $.  
 
 % In algorithmic parspective, the inference of the seq2seq model tries to generate sequence one by one, from the first token to the last.
 % The Seq2Tree model also tries to generate tree structure one by one, with depth-first order.
@@ -405,7 +484,7 @@ And they calculalte $ LSTM_{dec}(dec_{k},[av_{k}; nfv_{d}; pv_{d}]) $ instead of
 where $nfv_{d},pv_{d}$ are the vector embedding of $nf_{d},p_{d}$.
 
 They also used devised method for generating terminal symbols, because they need to copy the name of some variables from the program specification.
-However, in our case, we don't need copy the information from the input, because the name information is lost when compiling.
+However, in our case, we do not need copy the information from the input, because the name information is lost when compiling.
 Nevertheless, it is found from the experiments that our decompilers often fail to recover the constant values in the programs.
 Therefore, implementing the copying method is left for future work.
 
@@ -426,13 +505,12 @@ First, we collected source codes by crawling \cite[GitHub]{github}, cloning abou
 and recursively searched each folder to enumerate C language source code.
 From each source code, we generated pairs of C source code fragment and x64 assembly code corresponds to the C fragment.
 Some example data pairs are shown in figure~\ref{fig:pairsoffragments}. 
-\\*
 
 \begin{figure}
 	\begin{tabular}{|l|l|} \hline
 	 C source code & x64 assembly \\ \hline 
 		\begin{lstlisting}[style=Csample]
-		r *= a;
+		r *= a
 		\end{lstlisting}
 		&
 		\begin{lstlisting}[style=Asmsample]
@@ -518,11 +596,13 @@ So we have to preprocess the assembly data and C fragments to the token sequence
 
 \subsection{Assembly Code Preprocess}
 % 155 words
-The assemblies were preprocessed in two ways.
+There are two ways for preprocessing assembly codes.
+
 First way is the raw binary integers. The assemblies are finally assembled to the sequence of the one byte integers, ranged from 0 to 255.
 So the one byte integer sequences can be directly used for input sequences.
+
 Second way is the tokenized sequence of assembly codes. 
-The disassembled opcodes and operands in {\sl S5} are split to symbols, and concatenated the sequences to one sequence, then we modified followings.
+The disassembled opcodes and operands in {\sl S5} are split to symbols, and concatenated these sequences to one sequence, then we modified followings.
 \begin{itemize}
 \item For each end of the operations, the {\sl ENDLINE} symbol is added to indicate the end of operation.
 \item 
@@ -533,6 +613,10 @@ In detail, the integer in the range from -255 to 256 are preserved as it is, and
 This also reduces the vocabulary size.
 \end{itemize}
 
+We choiced second way for the experiment.
+This is because, in our case, the assembly code is generated from common C compiler, therefore the assembly code can be disassembled uniquely.
+For example, \cite{disasm_obfuscate} proposed a obfuscation technique, which deceives the disassembler to generate wrong disassembly result.
+In that case, the first way might be better than the second way.
 
 \subsection{C Code Preprocess}
 % 232 words
@@ -543,16 +627,16 @@ Then, the AST is converted to input data by following modifications.
 \begin{itemize}
 \item The variable-ary nodes and optional nodes are converted. 
 For example, the {\sl CompoundStatement} node has variable number of statements. 
-We converted such list of nodes to the chains of concatnation and terminal, like a list representation in functional language.
+We converted such list of nodes to the chains of concatnation {\sl CONS} and termination {\sl NIL}, like a list representation in functional language.
 Another example is the  {\sl If} statement, whose {\sl else} clausure are sometimes missing. 
-We converted such optional node to the alternative of some node and Null node, like a optional data structure in functional language.
+We converted such optional node to the alternative of {\sl SOME} and {\sl NONE}, like a optional data structure in functional language.
 \item The variable names, function names, label names, or type names were renamed like $\alpha$-conversion.
 \item There are four type of literals in C language. 
 The integer literal less than 256 is preserved, and the literal greater than 256 is clipped to 256.
 The string, float and character literals are converted to {\sl \_\_LITERAL\_\_} simbol.
 
 Modifying the node to indicate the value in the assembly code corresponding to the literal is also conceibable way,
-but we couldn't implement this because of its technical difficalty, so this is left to future work.
+but we did not implement this because of its technical difficalty, so this is left to future work.
 \end{itemize}
 
 The AST is used for sequence-to-Tree model dataset as it is.
@@ -576,7 +660,7 @@ Seq2seqAtt and Seq2tree are the models with attention, while Seq2seq is not.
 		 With Attention & no & \multicolumn{2}{|c|}{yes} \\ \hline
 		 Encoder & \multicolumn{3}{|c|}{Bidirectional LSTM} \\ \hline
 		Number of LSTM Layers & \multicolumn{3}{|c|}{4} \\ \hline
-		% Vector Dim & \multicolumn{3}{|c|}{128} \\ \hline
+		Dimensionality of Vector Embedding & \multicolumn{3}{|c|}{128} \\ \hline
 	\end{tabular}
 	\caption{The configuration parameters of the models}
 	\label{fig:parameterofmodels}
@@ -621,7 +705,7 @@ In this chapter, we show the evaluated result of the three models, Seq2seq, Seq2
 % We trained each models with reedbush, を用い、各モデルについて4時間学習させた。
 % We collected approximately $ 10^7 $ pairs of datasets. 
 
-
+% \section{Furure work}
 
 % TODO(satos)
 
@@ -636,6 +720,7 @@ In this chapter, we show the evaluated result of the three models, Seq2seq, Seq2
 
 % 精度計測では、各モデルに対して テストケースから100個のデータをランダムに取り出して翻訳させ、それらの編集距離とBLEU値の平均を計測した。
 
+\section{Numerical Evaluation}
 For evaluating each model, we randomly sampled 100 data pairs from test cases, generated estimated decompilation results for each test cases,
 then averaged the edit distance ratios and BLEU scores between results and ground truths.
 
@@ -654,11 +739,13 @@ Figure~\ref{fig:editdist} shows the relation of trainig data size and the averag
 Figure~\ref{fig:bleu} shows the relation of trainig data size and the averaged BLEU score for each models.
 The lower edit distance ratio and the higher BLEU score means the better decompilation performance.
 
-We can see that Seq2seqAtt shows slightly better results in both edit distance ratios and BLEU scores, 
-while there are no significant difference between Seq2seq and Seq2tree in both metrics.
-Seq2seqの結果とSeq2seqAttの結果を比較することにより、attention が性能向上に寄与していることがわかります。
-逆にSeq2treeにはattentionがあるにもかかわらずSeq2seqと比較して性能向上が見られなかったわけですが、
-これはCのソースコードをASTに変換した際に、データサイズが増えたためであると考えられます。
+We can see that Seq2seqAtt shows slightly better results in both edit distance ratios and BLEU scores,
+ which implies that the attention improves the performance of the decompilation.
+However, there are no significant difference between Seq2seq and Seq2tree in both metrics.
+This seems to be due to the length of the sequences to be estimated.
+% Seq2seqの結果とSeq2seqAttの結果を比較することにより、attention が性能向上に寄与していることがわかります。
+% 逆にSeq2treeにはattentionがあるにもかかわらずSeq2seqと比較して性能向上が見られなかったわけですが、
+% これはCのソースコードをASTに変換した際に、データサイズが増えたためであると考えられます。
 
 \begin{figure}[]
 	\includegraphics[width=12cm]{c_lens.png}
@@ -669,14 +756,119 @@ Seq2seqの結果とSeq2seqAttの結果を比較することにより、attention
 	\label{fig:astsizes}
 \end{figure}
 
-
 Figure~\ref{fig:csizes} shows the length distribution of the dataset as C token sequences
-, and figure~\ref{fig:astsizes} shows the size distribution of the same dataset as AST trees.
-The length 
-According to the figures, the AST size is 2~3 times larger than that of C source codes.
-  
+, and figure~\ref{fig:astsizes} shows the size distribution of the same dataset as ASTs.
+The size of a AST is equals to the length of its action sequence.
+According to the two figures, the AST size is 2~3 times larger than the length of C token sequences.
+Therefore, the AST estimation may be harder than C token sequence estimation.
+
+\begin{figure}
+	\begin{tabular}{|l|l|} \hline
+	 ground truth & 
+		\begin{lstlisting}[style=Csample]
+r *= a
+		\end{lstlisting} \\ \hline
+		Seq2Seq & 
+		\begin{lstlisting}[style=Csample]
+const unsigned int V0 = V1 * floatliteral
+		\end{lstlisting} \\ \hline
+		Seq2SeqAtt & 
+		\begin{lstlisting}[style=Csample]
+V0 = ( unsigned int ) ( V1 ) * ( unsigned int ) V2
+		\end{lstlisting} \\ \hline
+		Seq2Tree & 
+		\begin{lstlisting}[style=Csample]
+V0 = V0 * V1
+		\end{lstlisting} \\ \hline
+		\hline	
+	 ground truth & 
+		\begin{lstlisting}[style=Csample]
+while(p >= 0){
+	p--;
+	r *= a;
+}
+		\end{lstlisting} \\ \hline
+		Seq2Seq & 
+		\begin{lstlisting}[style=Csample]
+for(;V0 = (1<<(((unsigned int)-1<<((32-20)-1))-1))
+*((unsigned char*)(V1.V2))[1] = (unsigned char)2;
+}
+		\end{lstlisting} \\ \hline
+		Seq2SeqAtt & 
+		\begin{lstlisting}[style=Csample]
+while(((void *) >= 0) != ((void *) 0)){ 
+	return ((void *) 0);
+} else { 
+	V0 = (( void * ) 0); 
+}
+		\end{lstlisting} \\ \hline
+		Seq2Tree & 
+		\begin{lstlisting}[style=Csample]
+while(V0 < 0){ 
+	V1 = V0 - 1;
+}
+		\end{lstlisting}
+		 \\ \hline	\hline
+	 ground truth & 
+		\begin{lstlisting}[style=Csample]
+int pow(int a,int p){
+	int r = 1;
+	while(p >= 0){
+		p--;
+		r *= a;
+	}
+	return r;
+}
+		\end{lstlisting} \\ \hline
+		Seq2Seq & 
+		\begin{lstlisting}[style=Csample]
+void V0(int V1,int V1){ 
+	int V1 = 0; 
+	int V1; 
+	for(V2=1;V1<=V2;++V2){ 
+		V1 = * V3; 
+	} 
+}
+		\end{lstlisting} \\ \hline
+		Seq2SeqAtt & 
+		\begin{lstlisting}[style=Csample]
+void V0(unsigned int V1,unsigned int V2){ 
+	unsigned int V1 = ((void *) 0); 
+	unsigned int V3 = ((void *) 0); 
+	unsigned int V1 = ((((void *) 0) != ((void *) 0))); 
+	return V4; 
+}
+	\end{lstlisting} \\ \hline
+		Seq2Tree & 
+		\begin{lstlisting}[style=Csample]
+INVALID_FUNCTION_DECL { 
+	TRANCATETRANCATE 
+}
+		\end{lstlisting}
+		 \\ \hline	
+	\end{tabular}
+	\caption{Smaple translation results for each model}
+	\label{fig:sampletranse}
+\end{figure}
 
 
+\section{Sampled Decompilation Results}
+
+Figure~\ref{fig:sampletranse} shows sample translate results for each model.
+
+For the first short example, each of the models recovered that the C statement is composed of multiplication and assignment,
+while only Seq2Tree recovered the name of the variables, and Seq2Seq and Seq2SeqAtt were failed to recover.
+
+For the second middle example, Seq2Seq outputs invalid parenthesesed souce code, Seq2SeqAtt outputs invalid syntax (combination of while and else statement) code,
+while Seq2Tree outputs correct syntax but many wrong subexpressions.
+
+For the third large exapmle, all of the three models output a function with wrong body statement.
+The {\sl INVALID\_FUNCTION\_DECL} in the result of Seq2Tree means it outputs wrong structured function type, and the {\sl TRANCATE} means 
+the action is truncated because the too long action sequence is estimated. 
+For long size function or statements, Seq2Tree tends to expand list type node to {\sl CONS} node, which causes infinit expansion of sequence,
+and as a result, the type of the output function becomes broken and the body of the function becoms truncated.
+
+According to these decompilation results, it can be said that these models is not acceptable for practical use.
 
 % According to the figure 1, the 
 % 図1からわかるように、attention付きのネットワークとそうでないネットワークの間には有意に差が存在しているが、
@@ -689,15 +881,86 @@ According to the figures, the AST size is 2~3 times larger than that of C source
 % Figure~\ref{fig:csrs_lens} and figure~\ref{fig:ast_lens} show 学習に用いたデータセットについて、C言語のトークン列としてみたときのデータ長とAST tree として見たときの action size をそれぞれグラフにしてプロットしたものである。
 % 全体的に、
 
+% \section{Furure work}
+
+\chapter{Furure research}
+In this chapter, we suggest some other approaches to improve the accuracy of our decompilation models.
+
+\section{Improvement on Assembly Code Preprocessing}
+We used tokenized assembly string sequences for training. 
+However, such simple concatnation of sequences might lose the information of the unity of each instructions.
+To improve this point, we propose the following method.
+
+This method uses two LSTM networks, the instruction encoder network and the assembly code encoder network, for encoding assembly token sequences.
+First, each assembly instruction sequences are encoded by instruction encoding network into one instruction embedding vector, 
+so that the assembly codes turn into the sequennces of embedding vectors.
+Then, the sqeuence of embedding vectors is encoded into one reduced vector by assembly code encoder network.
+
+This method will be time consuming compared to the method used in the experiment, however, this might be worth trying.
+
+\section{Improvement on Sequence-to-tree Model}
+We considered that the AST representation seems to exploit the feature of C source code. 
+However, the sequence-to-tree model was not well performed.
+In this section, we seek to the improvement of the AST approach.
+\subsection{Copy Leaf Data from Assembler}
+The translation results show that the sequence-to-tree model have difficalty in recovering the leaf data of the program.
+Hence changing the method for expanding leaf node might improve the accuracy of decompilation.
+There are three kind of leaf data in the AST representation of a C source code.
+
+The first kind is the literal data. In the C source code, there are four literal data, integer, float, char and string. 
+In the assembly code, the string literal appears in the form of a memory address, and the other three literals appear in the form of an immediate value.
+Therefore, instead of estimating literal value directly, estimating the correcponding position in the assembly code might improve the correctness of decompilation.
+
+The second kind is the type of operator. These can be also estimated from the assembly code.
+For example, the operator $ + $ is compiled to the opecode {\sl add}, the operator $ | $ is compiled to the opecode {\sl or}, and so on. 
+Thus the type of operator might be estimated by indicating the correspond position in the assembly code.
+
+The third kind is the variable name. In the assembly code, a variable corresponds to a memory access. 
+Therefore, the name of a variable is identified by its corresponding memory position, similar to avobe two kinds.
+
+\subsection{Path Estimation} 
+In the sequence-to-tree model, a tree structure is flattened into an action sequence, 
+therefore the information of a tree structure might be lost in some degree.
+For example, the adjacent actions in the action sequence might be the distant actions in the AST, when they are in the different subtree of the AST.
+
+To preserve the information of the tree structure, we suddest to train the network for estimating each root-to-leaf action sequences in the AST,
+instead of the flattened action sequence. 
+For example, in the figure~\ref{fig:ast_zu}, there are four root-to-leaf action sequences, 
+$ [act_1, act_2] $, $ [act_1, act_3,act_4,act_5,act_6,act_7] $, $ [act_1, act_3,act_4,act_8] $ and $ [act_1, act_3,act_4,act_9,act_{10}] $.
+The AST can be recovered from these sequences instead of the whole sequence $ [act_1 \dots act_{10}] $, 
+and these sequences are independent of each other, when generating AST.
+Therefore, we may estimate each of the sequences from the asssembly token sequence by the sequence-to-sequence model.
+
+This approach will ease the AST size problem, because the length of a root-to-leaf path is shorter than the size of whole AST, unless the AST has no branching.
 
 
 
-% \chapter{Discussion}
-% 結果より、まずattention機構によって有意に精度が向上することが確認できた。
-% しかしながら、 seq2seq と seq2tree の間に
+
+% 前述の Sequence-to-Tree は プログラムの構造を考慮しているものの、アクションをそのまま列にするのは結局プログラムの木としての構造がある程度失われてしまっているのではないかと考えられる。
+% すなわち、アクションを列に展開しているため、ある部分木からその兄弟の部分木の生成に移る際に大幅なジャンプが生じている。
+
+
+
+\section{Improvement of Dataset}
+As is seen in the figure~\ref{fig:csizes} and figure~\ref{fig:astsizes}, most of the data are short length C code.
+This is due to our data generation method, which enumerates all of the subtree of a C source code.
+We intended the models to learn the structure of long data from the short data, though the result shows that 
+the poor decompilation results are generated from the longer data.
+Therefore, the length distribution of the training data might effect on the training result, 
+thus we will need to seek effective distribution for the training.
+
+
+% \section{For General Decompiler}
+
 
 
 \chapter{Conclusion}
+We tested three neural network models Seq2Seq, Seq2SeqAtt and Seq2Tree for decompilation.
+Numerically, Seq2SeqAtt peformanced better results compared to the other two models,
+but all of three models were not acceptable for practical use.
+Therefore, we will continue to develop practical decompiler for the good future of malware analysis.
+
+\chapter{Acknowledgement}
 
 \bibliographystyle{plainnat}
 \bibliography{reference}

@@ -2,7 +2,7 @@ struct tree{
 	int key,value;
 	struct tree *l,*r;
 };
-void free(struct tree* p);
+void free(void* p);
 void insert(struct tree** root,struct tree* node){
 	int nk = node->key;
 	struct tree** pos = root;

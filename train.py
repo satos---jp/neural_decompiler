@@ -108,7 +108,7 @@ def init_seq2seq():
  	
 	if modelname == 'seq2seq':
 		model = Seq2seq(n_layer, src_vocab_len, dst_vocab_len , n_unit, v_eos_dst, n_maxlen)
-	elif modelname == 'seq2seq_att':
+	elif modelname == 'seq2seq_withatt':
 		model = Seq2seq_with_GlobalAtt(n_layer, src_vocab_len, dst_vocab_len , n_unit, v_eos_dst, n_maxlen)
 	else:
 		assert False
@@ -277,7 +277,7 @@ def init_seq2tree():
 	return (model,optimizer,data,translate,asm_vocab)
 
 
-modelname = 'seq2seq'
+modelname = 'seq2seq_withatt'
 
 import os
 def main():
@@ -290,12 +290,39 @@ def main():
 
 	global train_iter_step 
 	global modelname
-	if modelname in ['seq2seq','seq2seq_att']:
+	if modelname in ['seq2seq','seq2seq_withatt']:
 		model,optimizer,dataset,translate,asm_vocab = init_seq2seq()
 	elif modelname in ['seq2tree_flatten','seq2tree']:
 		model,optimizer,dataset,translate,asm_vocab = init_seq2tree()
 	else:
 		assert False
+	"""
+	dns = os.listdir('reedbush/' + modelname + '/models/')
+	pn = 'iter_1800_'
+	nfn = list(filter(lambda x: pn in x,dns))[0]
+	serializers.load_npz('reedbush/' + modelname + '/models/' + nfn,model)
+	ds = [dataset.get_test(-1) for _ in range(6)]
+	model.translate(list(map(lambda x: x[0],ds)))
+	exit()	
+	
+	"""
+	dns = os.listdir('reedbush/' + modelname + '/models/')
+	if modelname == 'seq2tree_flatten':
+		pn = 'iter_1800_'
+	else:
+		pn = 'iter_1800_'
+	nfn = list(filter(lambda x: pn in x,dns))[0]
+	serializers.load_npz('reedbush/' + modelname + '/models/' + nfn,model)
+	with open('od.pickle','rb') as fp:
+		ds = pickle.load(fp)[6:]
+	results = model.translate(list(map(lambda x: xp.array(x[0]),ds)))
+	ds = list(zip(ds,results))
+	sfn = 'sample_' + modelname + '.pickle'
+	print('write to',sfn)
+	with open(sfn,'wb') as fp:
+		pickle.dump(ds,fp)
+	return
+	
 	"""
 	from precision import prec_seq2tree
 	serializers.load_npz('iter6400_seq2tree.npz',model)
@@ -303,13 +330,17 @@ def main():
 	exit()
 	"""
 	
-	dns = os.listdir(modelname + '/models/')
-	for i in range(21):
+	rbs = 'reedbush/' 
+	if isgpu:
+		rbs = ''
+	
+	dns = os.listdir(rbs + modelname + '/models/')
+	for i in range(18):
 		pn = 'iter_%d_' % (i*100)
 		nfn = list(filter(lambda x: pn in x,dns))
 		assert len(nfn)==1
 		nfn = nfn[0]
-		serializers.load_npz(modelname + '/models/' + nfn,model)
+		serializers.load_npz(rbs + modelname + '/models/' + nfn,model)
 		
 		sfn = 'translate_data/' + modelname + '/' + pn + 'transdata.pickle'
 		wds = []
@@ -318,7 +349,7 @@ def main():
 			ds = [dataset.get_test(-1) for _ in range(1000)]
 			results = model.translate(list(map(lambda x: x[0],ds)))
 			wds += list(zip(ds,results))
-		print('write to',sfn)
+		print('write to',sfn,'at',getstamp())
 		with open(sfn,'wb') as fp:
 			pickle.dump(wds,fp)
 	exit()
@@ -346,7 +377,12 @@ def main():
 	
 	trainer.run()
 
-main()
+#main()
+
+
+for s in ['seq2seq','seq2seq_withatt','seq2tree_flatten'][2:]:
+	modelname = s
+	main()
 
 
 """

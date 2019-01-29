@@ -1,11 +1,13 @@
-from plot_edit_bleus_data import seq2seq,seq2seq_att,seq2tree_flatten,seq2tree
+from plot_edit_bleus_data import seq2seq,seq2seq_att,seq2tree_flatten,seq2tree,seq2seq_1000
 from matplotlib import pyplot as plt
 
 
 def lap(i,v):
 	return list(map(lambda x: x[i],v))
 
-seq2seq = seq2seq[:21]
+seq2seq = seq2seq[:19]
+seq2seq_1000 = seq2seq_1000[:19]
+seq2seq_att = seq2seq_att[:19]
 
 def xlas(x):
 	x = x.split('e')

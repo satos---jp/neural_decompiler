@@ -3,8 +3,9 @@ import pickle
 
 from nltk.translate import bleu_score
 
+import c_cfg
 import csrc2ast
-	
+import code
 import sys
 sys.setrecursionlimit(10000)	
 
@@ -13,6 +14,7 @@ with open('dataset_asm_csrc/vocab_csrc.pickle','rb') as fp:
 
 
 def calc_csrc(fn):
+	#print(fn)
 	with open(fn,'rb') as fp:
 		ds = pickle.load(fp)
 	def normalize_sentense(s):
@@ -34,8 +36,13 @@ def calc_csrc(fn):
 	for a,b,c in ds:	
 		assert type(b) is list
 		assert type(c) is list
-		#print(b)
-		#print(c)
+		b = list(map(lambda x: x.replace('__NORMALIZE_TMP_ID_','V'),b))
+		b = list(map(lambda x: x.replace('__',''),b))
+		c = list(map(lambda x: x.replace('__NORMALIZE_TMP_ID_','V'),c))
+		c = list(map(lambda x: x.replace('__',''),c))
+		#print(' '.join(b))
+		#print(' '.join(c))
+		#print('-' * 100)
 		edit_ratio += 1.0 - edit_distance.SequenceMatcher(b,c).ratio()
 		bleu_ratio += bleu_score.sentence_bleu([b],c,smoothing_function=bleu_score.SmoothingFunction().method1)
 	edit_ratio /= len(ds)
@@ -44,6 +51,7 @@ def calc_csrc(fn):
 	
 
 def calc_ast(fn):
+	print(fn)
 	with open(fn,'rb') as fp:
 		ds = pickle.load(fp)
 	#print(len(ds))
@@ -58,10 +66,13 @@ def calc_ast(fn):
 			if sd[:8]=='__ALPHA_':
 				if not sd in names:
 					names.append(sd)
-				sd = 'VAR_%d' % names.index(sd)
+				sd = 'V%d' % names.index(sd)
 			ts.append(sd)
 		return ts
-	
+	#code.interact(local={'ds':ds})
+	#c_cfg.data_miyasui(ds[0][1][2][0])
+	#exit()
+	#print(ds[0][-1][-1])
 	ds = [(a,tree2normalizedsentense(b),tree2normalizedsentense(c)) for (a,b),c in ds]
 	ds = list(filter(lambda abc: (abc[1],abc[2]) != ([],[]),ds))
 	edit_ratio = 0
@@ -69,9 +80,9 @@ def calc_ast(fn):
 	for a,b,c in ds:	
 		assert type(b) is list
 		assert type(c) is list
-		#print(' '.join(b))
-		#print(' '.join(c))
-		#print('-' * 100)
+		print(' '.join(b))
+		print(' '.join(c))
+		print('-' * 100)
 		edit_ratio += 1.0 - edit_distance.SequenceMatcher(b,c).ratio()
 		bleu_ratio += bleu_score.sentence_bleu([b],c,smoothing_function=bleu_score.SmoothingFunction().method1)
 	edit_ratio /= len(ds)
@@ -83,15 +94,19 @@ def calc_ast(fn):
 #print(calc_ast('translate_data/seq2tree_flatten/iter_1800_transdata.pickle'))
 #exit()
 
-"""
+
+#calc_csrc('sample_seq2seq.pickle')
+#calc_csrc('sample_seq2seq_withatt.pickle')
+#calc_ast('sample_seq2tree_flatten.pickle')
+
 print('[')
 for i in range(65):
 	fn = 'translate_data/seq2seq/iter_%d_transdata.pickle' % (i*100)
 	r = calc_csrc(fn)
 	print(r,',')
 print(']')
-
-
+exit()
+"""
 print('[')
 for i in range(21):
 	fn = 'translate_data/seq2seq_withatt/iter_%d_transdata.pickle' % (i*100)
@@ -99,13 +114,14 @@ for i in range(21):
 	print(r,',')
 print(']')
 """
-"""
+
 print('[')
 for i in range(19):
 	fn = 'translate_data/seq2tree_flatten_verbose_choice/iter_%d_transdata.pickle' % (i*100)
 	r = calc_ast(fn)
 	print(r,',')
 print(']')
+
 """
 print('[')
 for i in range(21):
@@ -113,4 +129,4 @@ for i in range(21):
 	r = calc_ast(fn)
 	print(r,',')
 print(']')
-
+"""

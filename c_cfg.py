@@ -290,7 +290,7 @@ def function_decl_func(cs):
 		#print('invalid function decl')
 		#print(cs)
 		#exit()
-		return 'INVALID_FUNCTION_DECL{' + ''.join(cs) + '}'
+		return 'INVALID_FUNCTION_DECL{' + ';'.join(cs) + ';}'
 	arg_types_len = 0
 	if len(td[1])!=0 and td[1][0] != 'void':
 		arg_types_len = 1
