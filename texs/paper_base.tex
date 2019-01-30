@@ -3,8 +3,8 @@
 %\usepackage{graphicx}% 必要に応じて
 %\usepackage{mysettings}% 自分用設定
 %-------------------
-\etitle{Neural Network based Decompiler for Machine Coding}
-\jtitle{ニューラルネットを用いた機械語のための逆コンパイラ}
+\etitle{Neural Network based Decompiler for automatically recovering source codes from compiled binary data}
+\jtitle{ニューラルネットを用いた逆コンパイラ}
 
 __NAMES__
 
@@ -70,7 +70,6 @@ __NAMES__
   lineskip=-0.5ex,%
   captionpos=b,
 }
-
 
 
 \begin{document}
@@ -149,7 +148,7 @@ They prepared big corpus of C source codes, and they repeatedly mutated C code t
 
 \section{Improvement of decompilation results}
 In this thesis, we do not try to recover the function name and variable name. 
-However, for hand-decompilation, sometimes the name can be estimated by the functionality of the variable.
+However, for hand-decompilation, sometimes the name can be estimated from the functionality of the variable.
 For example, \cite{hand_decompilation} used Boomerang decompiler and repeatedly fixed variable types and names of the decompilation results 
 to recover the source code of a software.
 
@@ -158,8 +157,7 @@ Assume there is a variable X which seems to have a C struct type and has two fie
 Also, there are two functions F and G which operate with X. 
 The function F receives X and another value V, assigns V to the memory indicated by P, adds 8 to P and increases Q. 
 The function G receives X, subtracts 8 from P, decreases Q, and returns the value indicated by P.
-In the situation, is is estimated that X has a name related to {\sl stuck}, the function F has a name related to {\sl push},
-ands G has a name related to {\sl pop}.
+In the situation, is is estimated that X,F and G have names related to {\sl stuck}, {\sl push} and {\sl pop}, respectively.
 
 \cite{name_recover_from_decompile_result} tackled this work. 
 In that paper, they tried to estimate the name of a variable which appears in the decompilation result of a compiled C program.
@@ -191,27 +189,30 @@ In that case, both JavaScript codes and CoffeeScript codes are tree structured, 
 
 \chapter{Problem Settings and Methots}
 
-In this chapter, we explain about the statistical formalization of the decompilation problem,
-and the neural network models used in the experiment.
+In this chapter, we explain about the decompiler, its statistical formalization and 
+the neural network models used in the experiment.
 \section{Decompiler}
 
 % 320 words.
 
 A compiler is a program which compiles a source code written in language X to another language Y. 
 % 文献 Usually, X is a high-level language and Y is relatively a low-level language. 
-For example, a Clang compiler translates the C language to the x64 assembly language, a javac compiler translates Java to a Java virtual machine code.
-This process is usually 
-
-
-A decompiler is a program which aims to reverse the process of a compiler, retrieving a source code of the high-level language X from a source code of a low-level language Y. 
+For example, a GNU C compiler translates the C language to the x64 assembly language, a javac compiler translates Java to a Java virtual machine code.
+% This process is usually 
 % 文献
-Especially, 
-This reverse process is usually insufficient or impossible.
+% Especially, 
+% This reverse process is usually insufficient or impossible.
+A decompiler is a program which aims to reverse the process of a compiler, retrieving a source code of the high-level language X from a source code of a low-level language Y. 
+When X is a high-level language and Y is relatively a low-level language, 
+this reverse process becomes insufficient or impossible
+\citep{hex_rays,decompile_hard_java}.
+% for instance X is the C language and Y is the x64 assembly language 
 This is because a lot of informaition, such as variable names or function names, are lost when compiling.
 Additionally, the program structure described in the high level-language is lost too. 
 For example, a simple \texttt{for} statement can be represented by the combination of a \texttt{while} statement and an \texttt{if} statement, or the combination of \texttt{if} statement and \texttt{goto} statement. 
 So a decompiler cannot distinguish the difference in their representations, 
 although in the real situation \texttt{for} statement are often used and \texttt{goto} statement are rarely used.
+
 
 
 % これについてちゃんと書く。
@@ -225,30 +226,29 @@ although in the real situation \texttt{for} statement are often used and \texttt
 \begin{figure}
 	\begin{tabular}{cc}
 		\begin{minipage}[c]{0.5\hsize}
-		\begin{framed}
+		\fbox{
 			\lstinputlisting[breaklines=false]{insert_list.c}
-			\end{framed}
+			}
 			\caption*{Sample C source code}
 		\end{minipage}
-		\\
-		\begin{minipage}[c]{0.5\hsize} %title={Result of the Hopper Decompiler}
+		\\ \\
+		\begin{minipage}[b]{0.5\hsize} %title={Result of the Hopper Decompiler}
 			\begin{framed}
 			\lstinputlisting[]{snowman.c}
 			\end{framed}
 			\caption*{Result of the Snowman Decompiler}
 		\end{minipage}
-		\begin{minipage}[c]{0.5\hsize}
+		\begin{minipage}[b]{0.5\hsize}
 			\begin{framed}
-			\lstinputlisting[]{recstudio.c}
+			\lstinputlisting[breaklines=false]{recstudio.c}
 			\end{framed}
 			\caption*{Result of the REC Studio Decompiler}
 		\end{minipage}
 	\end{tabular}
-	\vspace*{-0.6cm}
+	% \vspace*{-0.6cm}
 	\caption{Decompilation results of existing decompilers for C source code}
 	\label{fig:cw}
 \end{figure}
-
 Figure~\ref{fig:cw} shows an example of decompilation results of the Snowman decompiler version v0.1.3 and the REC Studio decompiler version 4.1 
 for a sample C language code. The sample C code is compiled by the GNU C Compiler version 4.8.5, with the optimization level \texttt{-O0}.
 The REC decompiler missed the structure of the variable \texttt{root}.
@@ -260,11 +260,10 @@ however the statement \texttt{return 0;} is reconstructed to the complex combina
 These incorrect or verbose results might be due to missing patterns in the assembly codes. 
 Existing decompilers are made up with many steps similarly to compilers \citep{decompiler_path,hex_rays}.
 In each step, a decompiler finds patterns in binary data, converts them to more high-level structure.
-However, covering all patterns might be hardly impossible, since there are many compilers and compiler optimizations.
-文献欲しいが見当たらない...
+However, covering all patterns might be hardly impossible, since there are many compilers and compiler optimizations \citep{hex_rays}.
 
-Therefore, applying statical machine 
-
+By utilizing a corpus for soruce codes, a statistical method might have the potentioal for finding patterns automatically, without enumerating each patterns.
+Therefore, we tried to apply some statistical methods, which are described in the next section.
 
 % These patterns comprehensive 
 
@@ -294,19 +293,33 @@ Therefore, applying statical machine
 % Ideally, the decompilers can find correct function ranges and structure of statements, but they failed.
 
 
-\section{Problem Settings}
+\section{Problem Settings and the Approaches}
 
 % 189
 In this thesis, we try to apply statistical approach, specifically SMT (statistical machine translation) technique, for decompilation.
-The decompilation problem is formulated as follows. 
+SMT is the task which tries to translate one sentense $sx$ written in one language into the sentense $sy$ written in another language.
 
-Given $sx = [sx_1, \dots, sx_n] $ as a tokenized sequence of the source code of domain language X, compiler generates $sy$ as a code of target language Y with probability $p(sy|sx)$.
-Then, the best decompilation result for target source code $sy$ is $ \argmax_{sx} p(sx|sy)$. 
-To generate $ \argmax_{sx} p(sx|sy)$, we decomposit $ p(sx|sy) = p([sx_1, \dots, sx_n] |sy) = \prod_{k=1}^{n} p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $,
-where $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ represents the probability that the token $ sx_k $ follows to the sequence $ [sx_1,\dots,sx_{k-1}] $ 
-when the input sequence is $ sy $. 
-We try to estimate the probability $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ by LSTM, which is described in the next section.
-With estimated $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $, we can generate approximated $ \argmax_{sx} p(sx|sy)$ sequentially from $sx_1$ to $sx_n$ by selecting token $ \argmax_{sx_{k}} p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ at each timing.
+The decompilation problem is formulated as follows. 
+Suppose that there is a compiler $ f $ which converts a source code $ sx $ written in a programming language 
+to a source code $ sy $  written in another programming language Y with probability $p(sy|sx)$.
+In addition, suppose that the human-generated source code $ sx $ follows the probability distrubution $ p(sx) $.
+In this situation, the decompilation probability distribution $ p(sx|sy) $ in proportion to $ p(sy|sx)p(sx) $ according to the Bayesian low, 
+and the $\argmax_{sx} p(sx|sy)$ is considered as the best human-intelligible decompilation result for the code $sy$.
+
+In the experiment, we collected source codes from open source projects as the random sampling from the distribution $ p(sx) $, 
+and compileded them to generate the data pairs $ {\{(sx_k,sy_k)\}}_k $.
+Then the data pairs are used for training the SMT models to estimate $p(sx|sy)$, and testing the performance of the models.
+
+% Suppose that there is a compiler  Given $ sx $ as a source code of domain language X, compiler generates $sy$ as a code of target language Y with probability $p(sy|sx)$.
+
+
+% Given $sx = [sx_1, \dots, sx_n] $ as a tokenized sequence of the source code of domain language X, compiler generates $sy$ as a code of target language Y with probability $p(sy|sx)$.
+% Then, the best decompilation result for target source code $sy$ is $ \argmax_{sx} p(sx|sy)$. 
+% To generate $ \argmax_{sx} p(sx|sy)$, we decomposit $ p(sx|sy) = p([sx_1, \dots, sx_n] |sy) = \prod_{k=1}^{n} p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $,
+% where $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ represents the probability that the token $ sx_k $ follows to the sequence $ [sx_1,\dots,sx_{k-1}] $ 
+% when the input sequence is $ sy $. 
+% We try to estimate the probability $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ by LSTM, which is described in this section.
+% With estimated $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $, we can generate approximated $ \argmax_{sx} p(sx|sy)$ sequentially from $sx_1$ to $sx_n$ by selecting token $ \argmax_{sx_{k}} p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $ at each timing.
 
 % The LSTM is 
 % We assume the prior distribution $p(sx)$ as the human-generated source code. 
@@ -315,53 +328,65 @@ With estimated $ p(sx_k|sy,[sx_1,\dots,sx_{k-1}]) $, we can generate approximate
 % So we try to estimate $ \argmax_{sx} p(sy|sx)p(sx)$ for decompilation result.
 % And if the compiler is deterministic, there would be a function $f$ which represents the compiler and $p(f(sx)|sx) = 1$,
 % then the objective becomes to $ \argmax_{sx,f(sx)=sy} p(sx)$.
-
 % The distribution $p(sx)$ is approximated by collecting source code from open source projects.
 % So if we had enough high-level source code data, we could choose the most popular high-level source code which generates given low-level code for the decompile result.
 % However, high-level source code data can't be comprehensive.
 % So we have to model the structure of compilation process somehow.
 % We modeled the structure by the LSTM, which is commonly used in resent SMT techniques.
 
-\section{Modeling}
-
 % (TODO)LSTM,Seq2seqの説明、その後Attentionについて説明、さらにその後seq2treeについて説明する。
-\subsection{LSTM}
-%72 words.
-LSTM (Long Short-Term Memory) is a unit of Recurrent Neural Network. 
-It is first introduced in \cite{first_LSTM}, for overcoming the vanishing gradient problem and exploding gradient problem.
-Roughly speaking, LSTM unit recieves two input vectors, 
-the one represents the internal state of the LSTM, and the other is the input for the LSTM unit, 
+\subsection{RNN and LSTM}
+The RNN (Recurrent Neural Network) is a neural network for dealing with sequence data.
+The structure of the RNN is the sequence of the same node units, as shown in figre~\ref{fig:encoder} and figre~\ref{fig:decoder}. 
+The LSTM (Long Short-Term Memory) is a unit of Recurrent Neural Network. 
+It was first introduced in \cite{first_LSTM}, for overcoming the vanishing gradient problem and exploding gradient problem.
+In short, LSTM unit recieves two input vectors, 
+the one is the internal state of the LSTM, and the other is the input for the LSTM unit, 
 and LSTM emits one output vectors, which represents the next internal state of the LSTM.
 
 \subsection{Sequence-to-Sequence}
 % This model is called seq2seq (sequence to seqence) model.
 
 % 477 words.
-LSTM unit is applied for SMT task in \cite{seq2seq}, as the essential unit of the sequence-to-sequence (sequence to sequence) model.
-SMT is the task which tries to translate one sentense $sx$ written in one language into the sentense $sy$ written in another language.
 
-Sequence-to-sequence model is composed of two modules, the encoder netwrok and the decoder network.
+The sequence-to-sequence (sequence to sequence) model is the model for SMT task, introduced in  \cite{seq2seq}.
+% The combination of RNN and LSTM is applied to SMT task in, as the essential unit of the 
+Sequence-to-sequence model is composed of two recurrent neural networks, the encoder netwrok and the decoder network.
 
-The purpose of the encoder network is to summerize the input sequence $sx$, whose length varies depending on the sequence, into one fixed length vector.
+\begin{figure}[]
+	\begin{center}
+	\includegraphics[height=4cm]{encoder.png}
+	\end{center}
+	\caption{The encoder network of the sequence-to-sequence model}
+	\label{fig:encoder}
+	\begin{center}
+	\includegraphics[height=5.7cm]{decoder.png}
+	\end{center}
+	\caption{ The decoder network of the sequence-to-sequence model}
+	\label{fig:decoder}
+\end{figure}
+
+Figure figre~\ref{fig:encoder} shows the strucure of the encoder network.  The purpose of the encoder network is to summerize the input sequence $sx$, whose length varies depending on the sequence, into one fixed length vector.
 This process is carried out as follows. 
 First, $sx$ is tokenized to sequence $sx_{1} \dots sx_{n}$, and each token $sx_{k}$ is embedded to its vector representation $vx_{k}$. 
 Then, the initial LSTM internal state $enc_0$ is intialized randomely, 
 and $ enc_{1} \dots enc_{n} $ are calculated in accordance with the recursive formula $ enc_{k} = lstm_{enc}(enc_{k-1},vx_{k}) $.
 Finally, the last internal state $ enc_{n}$ is returned as the reduced representation of the input sequence $sx$.
 
-The purpose of the decoder network is to estimate the distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $. 
+Figure figre~\ref{fig:decoder} shows the strucure of the decoder network.  The purpose of the decoder network is to estimate the distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ for each k. 
 The training process is carried out as follows. 
-First, $sy$ is tokenized, appended the token $ EOS $ for indicating the end of the sequence, then embedded to a vector representation $vy_{1} \dots vy_{m}$ in the same way as embedding $sx$.
-From the start vector $y_{begin}$ and encoded input $ enc_{n} $, first internal state $ dec_{1}$ is calcuated as $ LSTM_{dec}(enc_{n},y_{begin}) $.
-Then, $ dec_{1} \dots dec_{m} $ are calculated in accordance with the recursive formula $ dec_{k} = lstm_{dec}(dec_{k-1},vy_{k}) $.
+First, $sy$ is tokenized, embedded to a vector representation $vy_{1} \dots vy_{m}$ in the same way as embedding $sx$.
+% prepended the token $ EOS $ for indicating the end of the sequence, then 
+Then, the first internal state $ dec_{1}$ is calcuated from the start vector $vy_{begin}$ and encoded input $ enc_{n} = dec_{0} $ in accordance with the formula  $ LSTM_{dec}(enc_{n},y_{begin}) $.
+Then, $ dec_{2} \dots dec_{m+1} $ are calculated in accordance with the recursive formula $ dec_{k+1} = lstm_{dec}(dec_{k},vy_{k}) $.
 Each decoder internal state $ dec_{k} $ is passed to the linear layer $ W_{dec} $ and then softmaxed to generate a probability vector $ py_{k} $.
 The probability vector $ py_{k} $ is intended to represent the probability distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
-So the network is trained to reduce the difference between predicted distribution $ py_{k} $ and actual distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
+Thus the network is trained to reduce the difference between predicted distribution $ py_{k} $ and actual distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
 In the experiment, we choiced cross-entropy of $ py_{k} $ and $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ for loss function.
 
 The inference for sequence $sx$ is carried out by calculating 
 $ \argmax_{sy} p(sy|sx) = \argmax_{sy} \prod_{k=1}^n p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
-Calculating argmax directly is time consuming, so we have to approximate the argmax by calculating $sy = [sy_1, \dots sy_m]$ sequentially.
+Calculating argmax directly is time consuming, therefore we have to approximate the argmax by calculating $sy = [sy_1, \dots sy_m]$ sequentially.
 First, $sy_1$ is calculated as $ \argmax_{sy_1} p(sy_1|sx,[]) $, where distribution $ p(sy_1|sx,[]) $ is approximated by 
 $ softmax(W_{dec}(dec_{1}))$. 
 Then, the next token $sy_2 = \argmax_{sy_1} p(sy_2|sx,[sy_2]) $ is calculated from $ dec_{1} $ and the vector embedding of $sy_1$, and so on.
@@ -501,7 +526,7 @@ The implementation source codes are avaiable at \url{https://github.com/satos---
 
 \section{Data Collection}
 % 219 words
-First, we collected source codes by crawling \cite[GitHub]{github}, cloning about 900 repositories with C language topic, 
+We collected source codes by crawling \cite[GitHub]{github}, cloning about 900 repositories with C language topic, 
 and recursively searched each folder to enumerate C language source code.
 From each source code, we generated pairs of C source code fragment and x64 assembly code corresponds to the C fragment.
 Some example data pairs are shown in figure~\ref{fig:pairsoffragments}. 
@@ -961,6 +986,9 @@ but all of three models were not acceptable for practical use.
 Therefore, we will continue to develop practical decompiler for the good future of malware analysis.
 
 \chapter{Acknowledgement}
+I thank Prof. Sugiyama and Lecture Sato for providing useful advice, supplying computational resources, helping me with writing this thesis and 
+correcting my English.
+I also thank A. Sano, who is my college classmate, for checking my English.
 
 \bibliographystyle{plainnat}
 \bibliography{reference}
