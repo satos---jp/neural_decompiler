@@ -200,15 +200,15 @@ the neural network models used in the experiment.
 
 % 320 words.
 
-A compiler is a program which compiles a source code written in language X to another language Y. 
+A compiler is a program which compiles a source code written in language Y to another language X. 
 % 文献 Usually, X is a high-level language and Y is relatively a low-level language. 
 For example, a GNU C compiler translates the C language to the x64 assembly language, a javac compiler translates Java to a Java virtual machine code.
 % This process is usually 
 % 文献
 % Especially, 
 % This reverse process is usually insufficient or impossible.
-A decompiler is a program which aims to reverse the process of a compiler, retrieving a source code of the high-level language X from a source code of a low-level language Y. 
-When X is a high-level language and Y is relatively a low-level language, 
+A decompiler is a program which aims to reverse the process of a compiler, retrieving a source code of the high-level language Y from a source code of a low-level language X. 
+When Y is a high-level language and X is relatively a low-level language, 
 this reverse process becomes insufficient or impossible
 \citep{hex_rays,decompile_hard_java}.
 % for instance X is the C language and Y is the x64 assembly language 
@@ -267,7 +267,7 @@ Existing decompilers are made up with many steps similarly to compilers \citep{d
 In each step, a decompiler finds patterns in binary data, converts them to more high-level structure.
 However, covering all patterns might be hardly impossible, since there are many compilers and compiler optimizations \citep{hex_rays}.
 
-By utilizing a corpus for source codes, a statistical method might have the potential for finding patterns automatically, without enumerating each patterns.
+By utilizing source codes corpus, a statistical method might find patterns automatically, without enumerating each patterns.
 Therefore, we tried to apply some statistical methods, which are described in the next section.
 
 % These patterns comprehensive 
@@ -302,18 +302,18 @@ Therefore, we tried to apply some statistical methods, which are described in th
 
 % 189
 In this thesis, we try to apply statistical approach, specifically SMT (statistical machine translation) technique, for decompilation.
-SMT is the task which tries to translate one sentence $sx$ written in one language into the sentence $sy$ written in another language.
+SMT is the task which tries to translate one sentence $sy$ written in one language into the sentence $sx$ written in another language.
 
 The decompilation problem is formulated as follows. 
-Suppose that there is a compiler $ f $ which converts a source code $ sx $ written in a programming language 
-to a source code $ sy $  written in another programming language Y with probability $p(sy|sx)$.
-In addition, suppose that the human-generated source code $ sx $ follows the probability distribution $ p(sx) $.
-In this situation, the decompilation probability distribution $ p(sx|sy) $ in proportion to $ p(sy|sx)p(sx) $ according to the Bayesian low, 
-and the $\argmax_{sx} p(sx|sy)$ is considered as the best human-intelligible decompilation result for the code $sy$.
+Suppose that there is a compiler which converts a source code $ sy $ written in a programming language 
+to a source code $ sx $  written in another programming language with probability $p(sx|sy)$.
+In addition, suppose that $ sy $ is human-generated source code and follows the probability distribution $ p(sy) $.
+In this situation, the decompilation probability distribution $ p(sy|sx) $ is in proportion to $ p(sx|sy)p(sy) $ according to the Bayesian low, 
+and the $\argmax_{sy} p(sy|sx)$ is considered as the best human-intelligible decompilation result for $sx$.
 
-In the experiment, we collected source codes from open source projects as the random sampling from the distribution $ p(sx) $, 
+In the experiment, we collected source codes from open source projects as the random sampling from the distribution $ p(sy) $, 
 and compiled them to generate the data pairs $ {\{(sx_k,sy_k)\}}_k $.
-Then the data pairs are used for training the SMT models to estimate $p(sx|sy)$, and testing the performance of the models.
+Then the data pairs are used for training the SMT models to estimate $p(sy|sx)$, and testing the performance of the models.
 
 % Suppose that there is a compiler  Given $ sx $ as a source code of domain language X, compiler generates $sy$ as a code of target language Y with probability $p(sy|sx)$.
 
@@ -342,19 +342,19 @@ Then the data pairs are used for training the SMT models to estimate $p(sx|sy)$,
 % (TODO)LSTM,Seq2seqの説明、その後Attentionについて説明、さらにその後seq2treeについて説明する。
 \subsection{RNN and LSTM}
 The RNN (Recurrent Neural Network) is a neural network for dealing with sequence data.
-The structure of the RNN is the sequence of the same node units, as shown in figre~\ref{fig:encoder} and figre~\ref{fig:decoder}. 
-The LSTM (Long Short-Term Memory) is a unit of Recurrent Neural Network. 
+The structure of the RNN is the sequence of the same node network units, as shown in figre~\ref{fig:encoder} and figre~\ref{fig:decoder}. 
+The LSTM (Long Short-Term Memory) is a unit of the RNN which we used in the experiment. 
 It was first introduced by \citet{first_LSTM}, for overcoming the vanishing gradient problem and exploding gradient problem.
-In short, LSTM unit receives two input vectors, 
-the one is the internal state of the LSTM, and the other is the input for the LSTM unit, 
-and LSTM emits one output vectors, which represents the next internal state of the LSTM.
+In short, a LSTM unit receives two input vectors, 
+the one is the internal state of the LSTM unit, and the other is the input for the LSTM unit, 
+and the LSTM unit emits one output vectors, which represents the next internal state of the LSTM unit.
 
 \subsection{Sequence-to-Sequence}
 % This model is called seq2seq (sequence to seqence) model.
 
 % 477 words.
 
-The sequence-to-sequence (sequence to sequence) model is the model for SMT task, introduced by \citet{seq2seq}.
+The sequence-to-sequence model is the model for SMT task, introduced by \citet{seq2seq}.
 % The combination of RNN and LSTM is applied to SMT task in, as the essential unit of the 
 Sequence-to-sequence model is composed of two recurrent neural networks, the encoder network and the decoder network.
 
@@ -371,7 +371,7 @@ Sequence-to-sequence model is composed of two recurrent neural networks, the enc
 	\label{fig:decoder}
 \end{figure}
 
-Figure~\ref{fig:encoder} shows the structure of the encoder network.  The purpose of the encoder network is to summarize the input sequence $sx$, whose length varies depending on the sequence, into one fixed length vector.
+Figure~\ref{fig:encoder} shows the structure of the encoder network.  The purpose of the encoder network is to summarize the input sequence $sx$, whose length varies depending on the sequence $sx$, into one fixed size vector.
 This process is carried out as follows. 
 First, $sx$ is tokenized to sequence $sx_{1} \dots sx_{n}$, and each token $sx_{k}$ is embedded to its vector representation $vx_{k}$. 
 Then, the initial LSTM internal state $enc_0$ is initialized randomly, 
@@ -382,16 +382,17 @@ Figure~\ref{fig:decoder} shows the structure of the decoder network.  The purpos
 The training process is carried out as follows. 
 First, $sy$ is tokenized, embedded to a vector representation $vy_{1} \dots vy_{m}$ in the same way as embedding $sx$.
 % prepended the token $ EOS $ for indicating the end of the sequence, then 
-Then, the first internal state $ dec_{1}$ is calculated from the start vector $vy_{begin}$ and encoded input $ enc_{n} = dec_{0} $ in accordance with the formula  $ LSTM_{dec}(enc_{n},y_{begin}) $.
+Then, the first internal state $ dec_{1}$ is calculated from the start vector $vy_{begin}$ and encoded input $ enc_{n} = dec_{0} $ in accordance with the formula  $ dec_1 = lstm_{dec}(dec_{0},y_{begin}) $.
 Then, $ dec_{2} \dots dec_{m+1} $ are calculated in accordance with the recursive formula $ dec_{k+1} = lstm_{dec}(dec_{k},vy_{k}) $.
-Each decoder internal state $ dec_{k} $ is passed to the linear layer $ W_{dec} $ and then softmaxed to generate a probability vector $ py_{k} $.
-The probability vector $ py_{k} $ is intended to represent the probability distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
+Each decoder internal state $ dec_{k} $ is passed to the linear layer $ W_{dec} $ and then softmaxed to generate a probability vector $ py_{k} = softmax(W_{dec}(dec_{k}))$.
+The probability vector $ py_{k} $ is intended to represent the probability distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $,
+and last probability vector $ py_{m+1} $ is intended to represent the probability of the end of the sequence $ p(EOS|sx,[sy_1,\dots,sy_{m}]) $.
 Thus the network is trained to reduce the difference between predicted distribution $ py_{k} $ and actual distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
 In the experiment, we choiced cross-entropy of $ py_{k} $ and $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ for loss function.
 
-The inference for sequence $sx$ is carried out by calculating 
+The inference from sequence $sx$ is carried out by estimating
 $ \argmax_{sy} p(sy|sx) = \argmax_{sy} \prod_{k=1}^n p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
-Calculating argmax directly is time consuming, therefore we have to approximate the argmax by calculating $sy = [sy_1, \dots sy_m]$ sequentially.
+Calculating argmax directly is exponentially time consuming, therefore we have to approximate the argmax by calculating $sy = [sy_1, \dots sy_m]$ sequentially.
 First, $sy_1$ is calculated as $ \argmax_{sy_1} p(sy_1|sx,[]) $, where distribution $ p(sy_1|sx,[]) $ is approximated by 
 $ softmax(W_{dec}(dec_{1}))$. 
 Then, the next token $sy_2 = \argmax_{sy_1} p(sy_2|sx,[sy_2]) $ is calculated from $ dec_{1} $ and the vector embedding of $sy_1$, and so on.
@@ -407,15 +408,15 @@ What is mentioned above is the basic structure of the sequence-to-sequence model
 To improve the performance of the sequence-to-sequence model, there are some devices for the model.
 In the following, we introduce two devices, which are used in our experiment.
 
-First is the Bidirectional Recurrent Neural Networks (BRNN) is the architecture introduced by \citet{BiRNN}.
+First is the Bidirectional Recurrent Neural Networks (BRNN), which is the architecture introduced by \citet{BiRNN}.
 In our experiment, this architecture is used for the encoder network as follows.
 In addition to the internal state $ enc_{k} $, the reverse internal state $ enc_{k}^{\gets} $ is also calculated 
 in accordance with the recursive formula $ enc_{k}^{\gets} = lstm_{enc}^{\gets}(enc_{k+1}^{\gets},vx_{k}) $.
-Then both of the internal states $ enc_{n} $ and $ enc_{1}^{\gets} $ are used for decoder network.
+Then both of the internal states $ enc_{n} $ and $ enc_{0}^{\gets} $ are used for decoder network.
 
 Second is the multi-layer recurrent neural networks, introduced by \citet{multi_layer}.
 They reported that, feeding the output sequence of the LSTM network to another LSTM network, like stacking the network layers, will improve the accuracy of the prediction.
-This architecture is called as stacked recurrent neural networks or multi-layer recurrent neural networks.
+This architecture is called as the stacked recurrent neural networks or the multi-layer recurrent neural networks.
 
 
 
@@ -425,7 +426,7 @@ This architecture is called as stacked recurrent neural networks or multi-layer 
 
 \subsection{Attention}
 Attention is a extension module for sequence-to-sequence model to improve the quality of translation. 
-Simple sequence-to-sequence model has a problem that the length of the encoded vector $enc_{n}$ is fixed 
+A simple sequence-to-sequence model has a problem that the size of the encoded vector $enc_{n}$ is fixed 
 regardless of the length of the input sequence $sx$. 
 Therefore, the longer the length of the input becomes, the more likely the information of the input will be lost.
 This problem is eased by using the information in the encoding network when decoding the output sequence.
@@ -434,19 +435,19 @@ The attention module is first developed by \citet{attention_paper}.
 We implemented the global general attention, which is introduced by \citet{dot_attention}, for improving the quality of decompilation.
 In the following, we will describe about the global general attention.
 
-As above mentioned, the pure sequence-to-sequence model uses the output of decoder network $ dec_{k} $ for estimating 
+As the mentioned in the previous section, the pure sequence-to-sequence model uses the output of the decoder network $ dec_{k} $ for estimating 
 the distribution $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $.
 In the sequence-to-sequence model with attention, 
 a context vector $ ctx_{k} $ is calculalted from $ dec_{k} $ and the internal states of encoder network $ enc_{1} \dots enc_{n} $, 
 then the distribution is estimated from the output vector $ dec_{k} $ and context vector $ ctx_{k} $.
 The context vector $ ctx_{k} $ is calculated as follows.
-For each state $ enc_{l} $, the importance of the state $ a_{l} $ is calculated as $ a_{l} = score(dec_{k},enc_{l}) $,
-then the $ ctx_{k} $ is calculated as $ ctx_{k} = \sum_{l=1}^{n} \frac{\exp{a_{l}}}{\sum_{l=1}^{n}\exp{a_{l}}} enc{l} $, 
+For each encoder state $ enc_{l} $, the importance of the state is calculated as $ a_{l} = score(dec_{k},enc_{l}) $,
+then the $ ctx_{k} $ is calculated as $ ctx_{k} = \sum_{l=1}^{n} \frac{\exp{a_{l}}}{\sum_{l=1}^{n}\exp{a_{l}}} enc_{l} $, 
 as the weighted average of $ enc_{1} \dots enc_{n} $.
 % Multiple score functions are introduced by \cite{dot_attention}, and we choiced 
-In the paper by \citet{dot_attention}, various kinds of score function is suggested.
-We used general score function, which is calculated as $ score(dec_{k},enc_{l}) = dec_{k}^T W enc_{l} $ ,
-where W is the parameter matrix. 
+In the paper by \citet{dot_attention}, various kinds of score function was suggested.
+In our experiment, we used general score function , which is calculated as $ score(dec_{k},enc_{l}) = dec_{k}^T W enc_{l} $ ,
+where W is the parameter matrix.
 
 % With the information of the internal state $ ctx_{k} $ of the encoder network, the decoder network can access to the 
 
@@ -480,44 +481,45 @@ where W is the parameter matrix.
 % 184 words
 Compare to natural languages, programming languages obeys rigid grammars. % wich are usually context free grammers.
 Therefore, it is reasonable to consider the grammar of the programming language when generating programs.
-Sequence-to-Tree is a model for generating tree-structured output from sequence input. 
-This model is introduced by \citet{Seq2Tree} for generating a program from a program specification written in the natural language. 
-This task is similar to our task, which aims to generate programs from the sequence of the assembly code, so we implemented this model in the experiment.
+Sequence-to-Tree is a model for generating a tree-structured output from a sequence input. 
+This model is introduced by \citet{Seq2Tree} for generating a program from a program specification written in a natural language. 
+This task is similar to our task which aims to generate programs from the assembly codes, which are a sequence of instructions.
+Therefore we implemented this model in the experiment.
 
-Now, we will describe about the sequence-2-tree model.
-sequence-to-tree model is composed of two modules, the encoder network and the decoder network.
-The encoder network of sequence-2-tree model is the same as the encoder network of sequence-to-tree model. It summarize the input sequence into one fixed length vector.
+Now, we will describe about the sequence-to-tree model.
+sequence-to-tree model is composed of two networks, the encoder network and the decoder network.
+The encoder network of the sequence-to-tree model is the same as that of the sequence-to-seequence model. It summarizes the input sequence into one fixed size vector.
 
 \begin{figure}[]
 	\begin{center}
-	\includegraphics[height=12cm]{ast_zu.png}
+	\includegraphics[height=11.5cm]{ast_zu.png}
 	\end{center}
 	\caption{AST representation of a C statement \texttt{b = a + 3;} }
 	\label{fig:ast_zu}
 \end{figure}
 
 The decoder network is a network for generating tree structured output. 
-A tree-structure is representable by the sequence of the actions which expands a nonterminal symbol of the constructing tree.
+A tree structure is representable by the sequence of the actions which expands a nonterminal symbol of the constructing tree.
 For example, the tree shown in figure~\ref{fig:ast_zu} is generated from the sequence $ [act_1, \dots act_{12}] $, 
 where action $ act_k $ expands the left-most nonterminal symbol in the tree generated from the action sequence $ [act_1, \dots act_{k-1}] $. 
 Suppose the tree $ty$ is generated by the action sequence $ [act_1, \dots act_m] $, 
 then the tree-generating probability $ p(ty|sx) $ is decomposed to $ \prod_{k=1}^n p(act_k|sx,[act_1, \dots act_{k-1}]) $. 
-The sequence-to-sequence model is now applicable for generating tree structure, by embeding each action to representing vector $av_k$ and 
+Thus the sequence-to-sequence model is now applicable for generating tree structure, by embeding each action $act_k$ to representing vector $av_k$ and 
 calculating $ lstm_{dec}(dec_{k},av_{k}) $ sequentially for estimating $p(act_{k+1}|sx,[act_1, \dots act_{k}]) $.  
 
 % In algorithmic parspective, the inference of the seq2seq model tries to generate sequence one by one, from the first token to the last.
 % The Seq2Tree model also tries to generate tree structure one by one, with depth-first order.
 % The inference of the SeqTree model starts from the start symbol, and recursively expand the nonterminal symbols in depth-first order.
 
-In that paper, they additionally tries to use the information which is peculiar to the tree structure. 
-For expanding the node $d$, they also use the information of node type $ nf_{d} $ and the parent action $p_{d}$ from which $d$ is generated.
-Then they calculated $ lstm_{dec}(dec_{k},[av_{k}; nfv_{d}; pv_{d}]) $ instead of $ lstm_{dec}(dec_{k},av_{k}) $, 
+In the sequence-to-tree model, the information which is peculiar to the tree structure is additionaly used.
+For expanding node $d$, the information of the node type $ nf_{d} $ and the parent action $p_{d}$ from which node $d$ is generated are used.
+Then the next internal state is calculated as $ lstm_{dec}(dec_{k},[av_{k}; nfv_{d}; pv_{d}]) $ instead of $ lstm_{dec}(dec_{k},av_{k}) $, 
 where $nfv_{d},pv_{d}$ are the vector embedding of $nf_{d},p_{d}$.
 
-They also used devised method for generating terminal symbols, because they need to copy the name of some variables from the program specification.
-However, in our case, we do not need copy the information from the input, because the name information is lost when compiling.
-Nevertheless, it is found from the experiments that our decompilers often fail to recover the constant values in the programs.
-Therefore, implementing the copying method is left for future work.
+In the sequence-to-tree paper, they also used devised method for generating terminal symbols, because they need to copy the name of some variables from the program specification.
+However, in our case, we do not need to copy the information from the input, because the name information is lost when compiling.
+Nevertheless, it is found from the experiments that our models often fail to recover the constant values in the programs.
+Therefore, implementing the copying method for values is left for future work.
 
 % しかしながら、実験の結果、ソースコード中の定数に関しては復元が困難であることが観察された。このため、プログラム中の定数に関してこのcopy method を実装することが考えられるが、
 % これは future work とする。
@@ -532,9 +534,10 @@ The implementation source codes are available at \url{https://github.com/satos--
 
 \section{Data Collection}
 % 219 words
-We collected source codes by crawling GitHub \citep{github}, cloning about 900 repositories with C language topic, 
-and recursively searched each folder to enumerate C language source code.
-From each source code, we generated pairs of C source code fragment and x64 assembly code corresponds to the C fragment.
+We collected source codes from GitHub \citep{github} by crawling.
+We cloned about 900 repositories with the C language topic, 
+and recursively searched each repositoriy to enumerate C language source codes.
+From each source code, we generated pairs of a C source code fragment and a x64 assembly code corresponds to the C source code fragment.
 Some example data pairs are shown in figure~\ref{fig:pairsoffragments}. 
 
 \begin{figure}
@@ -602,50 +605,53 @@ LABEL_0 :
 	\label{fig:pairsoffragments}
 \end{figure}
 
-The pairs were generated as follows. Let S0 be an original C source code.
+These pairs were generated as following steps. Let S0 be an original C source code.
 \begin{enumerate}
-\item Remove all preprocessor, such as \texttt{\#include}, in S0 to generate preprocessed C code S1. 
+\item Remove all preprocessors, such as \texttt{\#include}, in S0 to generate preprocessed C code S1. 
 \item Tokenize S1 and rearrange them in S2 so that there is exactly one token for each line. 
 \item 
-Compile S2 by the GNU C compiler with no optimization option (-O0) and debug option to get assembly code S3. 
-With debug option, S3 contains information about the source code position which each assembly operations are originated from.
+Compile S2 by the GNU C compiler with no optimization option (-O0) and debug option (-g) to get assembly code S3. 
+With debug option, S3 contains the information about the corresponding source code positions in S2. 
+% which each assembly operations are originated from.
 \item Assemble S3 to object file S4 and disassemble S4 to get information eliminated assembly code S5.
 \item 
-Parse S2 with clang to get AST of the source code. 
-And for each subtree of AST, we can get C fragment source code which corresponds to the subtree, 
-and we can get assembly code corresponds to the C fragment by employing S5 combine with S3.
+Parse S2 with a Clang compiler to get the AST of the source code and enumerate the subtrees of the AST.
+Each subtree of the AST has the correspoinding source code positions in S2.
+Therefore, we can get the pair of an assembly code and a C fragment corresponding to the subtree 
+by using the informations in S2,S3 and S5.
 \end{enumerate}
 
-The C fragment and assembly code pairs are preprocessed for the training and testing data.
-
+The pairs of a C fragment and an assembly code are then preprocessed for the training and the testing data.
 
 \section{Data Preprocessing}
 
 % 34 words
-In order to apply LSTM, input and output for the LSTM must be the sequence of tokens. 
-So we have to preprocess the assembly data and C fragments to the token sequences by somehow.
+In order to apply the sequence-to-sequence model, 
+we have to preprocess the assembly codes and the C fragments into the sequences of tokens.
 
 \subsection{Assembly Code Preprocess}
 % 155 words
 There are two ways for preprocessing assembly codes.
 
-First way is the raw binary integers. The assemblies are finally assembled to the sequence of the one byte integers, ranged from 0 to 255.
-So the one byte integer sequences can be directly used for input sequences.
+The first way is converting into the sequence of integers. 
+The assembly code can be assembled into the sequence of the one byte integers, ranged from 0 to 255.
+Therefore the one byte integer sequences can be directly used as the input sequences for the sequence-to-sequence model.
 
-Second way is the tokenized sequence of assembly codes. 
-The disassembled opcodes and operands in S5 are split to symbols, and concatenated these sequences to one sequence, then we modified followings.
+The second way is converting into the tokenized sequence of assembly codes. 
+Splitting the disassembled instructions in S5 into the sequence of symbols, and concatenating these sequences to one sequence, then modifying followings.
 \begin{itemize}
-\item For each end of the operations, the \texttt{ENDLINE} symbol is added to indicate the end of operation.
+\item For each end of the instructions, the \texttt{ENDLINE} token is added to indicate the end of the instructions.
 \item 
-The relative access of code address, such as \texttt{call} or \texttt{jump} operations, 
-are relabeled like $\alpha$-conversion for making code position independent and for reducing the vocabulary size.
-\item The big integer values are substituted. 
-In detail, the integer in the range from -255 to 256 are preserved as it is, and the other integers are substituted with the \texttt{\_\_HEX\_\_} symbol.
+The relative addressing, such as the address of \texttt{call} or \texttt{jump} instructions, 
+are relabeled like $\alpha$-conversion for making the code into position independent and for reducing the vocabulary size.
+\item The big integer values are clipped. 
+In detail, the integer in the range from -255 to 256 are preserved as it is, and the other integers are clipped and substituted with the \texttt{\_\_HEX\_\_} symbol.
 This also reduces the vocabulary size.
 \end{itemize}
 
 We choosed second way for the experiment.
-This is because, in our case, the assembly code is generated from common C compiler, therefore the assembly code can be disassembled uniquely.
+This is because, in our case, the assembly code is generated from the GNU C compiler, which is common compiler.
+Therefore the assembly code can be disassembled uniquely.
 For example, \citet{disasm_obfuscate} proposed a obfuscation technique, which deceives the disassembler to generate wrong disassembly result.
 In that case, the first way might be better than the second way.
 
@@ -658,35 +664,34 @@ Then, the AST is converted to input data by following modifications.
 \begin{itemize}
 \item The variable-ary nodes and optional nodes are converted. 
 For example, the \texttt{CompoundStatement} node has variable number of statements. 
-We converted such list of nodes to the chains of concatenation \texttt{CONS} and termination \texttt{NIL}, like a list representation in functional language.
+We converted such list of nodes to the chains of the node \texttt{CONS} and the node \texttt{NIL}, like the list representation in a functional language.
 Another example is the \texttt{if} statement, whose \texttt{else} clause are sometimes missing. 
-We converted such optional node to the alternative of \texttt{SOME} and \texttt{NONE}, like a optional data structure in functional language.
+We converted such optional nodes to the alternative of the \texttt{SOME} node and the \texttt{NONE} node, like the optional data structure in a functional language.
 \item The variable names, function names, label names, or type names were renamed like $\alpha$-conversion.
-\item There are four type of literals in C language. 
-The integer literal less than 256 is preserved, and the literal greater than 256 is clipped to 256.
+\item There are four type of literals in the C language. 
+An integer literal less than 256 is preserved, and an integer literal greater than 256 is clipped to 256.
 The string, float and character literals are converted to \texttt{\_\_LITERAL\_\_} symbol.
 
-Modifying the node to indicate the value in the assembly code corresponding to the literal is also conceivable way,
-but we did not implement this because of its technical difficulty, so this is left to future work.
+% Modifying the node to indicate the value in the assembly code corresponding to the literal is also conceivable way,
+% but we did not implement this because of its technical difficulty, so this is left to future work.
 \end{itemize}
 
-The AST is used for sequence-to-Tree model dataset as it is.
-Also, the AST is converted to C token sequence for sequence-to-sequence model dataset. 
+ASTs is used for the sequence-to-tree model as it is, or converted to C token sequences for the sequence-to-sequence model. 
 
 \section{Model Configuration}
 The training model was implemented with Chainer version 4.5.0 \citep{chainer}.
-We implemented three models, Seq2seq, Seq2seqAtt, and Seq2tree.
+We implemented three models, Seq2Seq, Seq2SeqAtt, and Seq2Tree.
 
-The encoder module was bidirectional LSTM in all of three models.
-The decoder module of Seq2seq and Seq2seqAtt predict the conditional probability of a next token $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $,
-while the decoder module of Seq2tree predicts the conditional probability of a next action $ p(a_{k}|sx,[a_1, \dots a_{k-1}]) $.
+The encoder network was bidirectional LSTM in all of the three models.
+The decoder network of Seq2Seq and Seq2SeqAtt predict the conditional probability of a next token $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $,
+while the decoder network of Seq2Tree predicts the conditional probability of a next action $ p(act_{k}|sx,[act_1, \dots act_{k-1}]) $.
 
-Seq2seqAtt and Seq2tree are the models with attention, while Seq2seq is not.
+Seq2SeqAtt and Seq2Tree are the models with attention, while Seq2Seq is not.
 
 \begin{figure}[h]
 	\begin{tabular}{|c||c|c|c|}
 		\hline
-		  & Seq2seq & Seq2seqAtt & Seq2tree \\ \hline \hline
+		  & Seq2Seq & Seq2SeqAtt & Seq2Tree \\ \hline \hline
 		 Generate & \multicolumn{2}{|c|}{token sequence} & AST \\ \hline
 		 With Attention & no & \multicolumn{2}{|c|}{yes} \\ \hline
 		 Encoder & \multicolumn{3}{|c|}{Bidirectional LSTM} \\ \hline
@@ -703,16 +708,16 @@ Figure~\ref{fig:parameterofmodels} shows the parameters of the models.
 
 \section{Model Training}
 % 91 words
-We trained the model to reduce the cross-entropy loss between predicted and actual conditional probability.
+We trained these models to reduce the cross-entropy loss between predicted and actual conditional probability.
 The conditional probability is the probability of next token $ p(sy_k|sx,[sy_1,\dots,sy_{k-1}]) $ for sequence-to-sequence model, 
-and the probability of next action $p(a_{k+1}|sx,[a_1, \dots a_{k}]) $ for sequence-to-tree model.
+and the probability of next action $p(act_{k+1}|sx,[act_1, \dots act_{k}]) $ for sequence-to-tree model.
 
 For the optimizer of the training, we used Adam, which is introduced in \cite{Adam}.
 The parameters of Adam are $ (\alpha,\beta_1,\beta_2) = (0.001,0.9,0.999) $, which are the default parameters of Chainer version 4.5.0.
 % 学習の際のoptimizerにはAdam(文献)を用いた。
 
 \section{Model Evaluation}
-We evaluated the quality of the decompilation by two metrics, edit distance ratio and BLEU.
+We evaluated the quality of the results by two metrics, edit distance ratio and BLEU.
 
 Edit distance ratio is the metrics for the correctness of the decompilation result.
 Here, the edit distance ratio between two strings means the Levenshtein distance divided by the average length of the two strings.
@@ -723,16 +728,16 @@ BLEU is the metrics for the similarity of the ground truth and the decompilation
 It is first introduced by \citet{BLEU}, for evaluating the performance of the machine translation.
 BLEU is calculated from the sets of the n-gram for each sentence. 
 If the two sentences has similar n-gram sets, the BLEU score becomes higher.
-In our case, it means that the decompilation result is more similar to the program written by human, that is, more human intelligible.
+In our case, it means that the decompilation result is more similar to the program written by human. %, that is, more human intelligible.
 
 % 2つの文のn-gram集合が似ているほど、BLEUスコアは高くなります。今回の場合はデコンパイル結果がより人間らしい自然な出力となっていることを意味します。
 
-In the experiment, we normalized variable names in the source codes by renaming. 
+Before calculating these scores, we normalized variable names in the source codes by renaming.
 % 補足として、今回は edit distance と BLEU を計算する際に、変数名を先頭から順に順番に付け直すことにより、ソースコード中の変数名の付けなおしを行っている。
 % これはプログラムの意味は変数名に依らないためである。
 
 \chapter{Evaluation}
-In this chapter, we show the evaluated result of the three models, Seq2seq, Seq2seqAtt, and Seq2tree.
+In this chapter, we show the evaluated result of the three models, Seq2Seq, Seq2SeqAtt, and Seq2Tree.
 % We trained each models with reedbush, を用い、各モデルについて4時間学習させた。
 % We collected approximately $ 10^7 $ pairs of datasets. 
 
@@ -770,9 +775,9 @@ Figure~\ref{fig:editdist} shows the relation of training data size and the avera
 Figure~\ref{fig:bleu} shows the relation of training data size and the averaged BLEU score for each models.
 The lower edit distance ratio and the higher BLEU score means the better decompilation performance.
 
-We can see that Seq2seqAtt shows slightly better results in both edit distance ratios and BLEU scores,
+We can see that Seq2SeqAtt shows slightly better results in both edit distance ratios and BLEU scores,
  which implies that the attention improves the performance of the decompilation.
-However, there are no significant difference between Seq2seq and Seq2tree in both metrics.
+However, there are no significant difference between Seq2Seq and Seq2Tree in both metrics.
 This seems to be due to the length of the sequences to be estimated.
 % Seq2seqの結果とSeq2seqAttの結果を比較することにより、attention が性能向上に寄与していることがわかります。
 % 逆にSeq2treeにはattentionがあるにもかかわらずSeq2seqと比較して性能向上が見られなかったわけですが、
@@ -790,8 +795,8 @@ This seems to be due to the length of the sequences to be estimated.
 Figure~\ref{fig:csizes} shows the length distribution of the dataset as C token sequences
 , and figure~\ref{fig:astsizes} shows the size distribution of the same dataset as ASTs.
 The size of a AST is equals to the length of its action sequence.
-According to the two figures, the AST size is 2~3 times larger than the length of C token sequences.
-Therefore, the AST estimation may be harder than C token sequence estimation.
+According to these two figures, the AST size is 2 or 3 times larger than the length of C token sequences.
+Therefore, the AST estimation may be harder than the C token sequence estimation.
 
 \begin{figure}
 	\begin{tabular}{|l|l|} \hline
@@ -888,15 +893,15 @@ INVALID_FUNCTION_DECL {
 Figure~\ref{fig:sampletranse} shows sample translate results for each model.
 
 For the first short example, each of the models recovered that the C statement is composed of multiplication and assignment,
-while only Seq2Tree recovered the name of the variables, and Seq2Seq and Seq2SeqAtt were failed to recover.
+while only Seq2Tree recovered the name of the variables correctly, and Seq2Seq and Seq2SeqAtt were failed to recover.
 
-For the second middle example, Seq2Seq outputs source code with invalid parentheses, Seq2SeqAtt outputs invalid syntax (combination of while and else statement) code,
-while Seq2Tree outputs correct syntax but many wrong subexpressions.
+For the second middle example, Seq2Seq outputted source code with invalid parentheses, Seq2SeqAtt outputted invalid syntax code (combination of the \texttt{while} statement and the \texttt{else} statement).
+Seq2Tree outputted a correct syntax of code and estimated the \texttt{while} loop correctly, but failed to estimate subexpressions.
 
 For the third large example, all of the three models output a function with wrong body statement.
 The \texttt{INVALID\_FUNCTION\_DECL} in the result of Seq2Tree means it outputs wrong structured function type, and the \texttt{TRANCATE} means 
 the action is truncated because the too long action sequence is estimated. 
-For long size function or statements, Seq2Tree tends to expand list type node to \texttt{CONS} node, which causes infinite expansion of sequence,
+For long size function or statements, Seq2Tree tends to expand list type node to \texttt{CONS} node, which causes infinite expansion of a list,
 and as a result, the type of the output function becomes broken and the body of the function becomes truncated.
 
 According to these decompilation results, it can be said that these models is not acceptable for practical use.
@@ -924,10 +929,11 @@ To improve this point, we propose the following method.
 
 This method uses two LSTM networks, the instruction encoder network and the assembly code encoder network, for encoding assembly token sequences.
 First, each assembly instruction sequences are encoded by instruction encoding network into one instruction embedding vector, 
-so that the assembly codes turn into the sequences of embedding vectors.
+thus the assembly codes turn into the sequences of instruction embedding vectors.
 Then, the seqeuence of embedding vectors is encoded into one reduced vector by assembly code encoder network.
 
-This method will be time consuming compared to the method used in the experiment, however, this might be worth trying.
+This method will be time consuming compared to the method used in the experiment.
+Nevertheless, this might be worth trying.
 
 \section{Improvement on Sequence-to-tree Model}
 We considered that the AST representation seems to exploit the feature of C source code. 
@@ -935,7 +941,7 @@ However, the sequence-to-tree model was not well performed.
 In this section, we seek to the improvement of the AST approach.
 \subsection{Copy Leaf Data from Assembler}
 The translation results show that the sequence-to-tree model have difficulty in recovering the leaf data of the program.
-Hence changing the method for expanding leaf node might improve the accuracy of decompilation.
+Threfore changing the method for expanding leaf node might improve the accuracy of decompilation.
 There are three kind of leaf data in the AST representation of a C source code.
 
 The first kind is the literal data. In the C source code, there are four literal data, integer, float, char and string. 
@@ -944,7 +950,7 @@ Therefore, instead of estimating literal value directly, estimating the correspo
 
 The second kind is the type of operator. These can be also estimated from the assembly code.
 For example, the operator $ + $ is compiled to the opcode \texttt{add}, the operator $ | $ is compiled to the opcode \texttt{or}, and so on. 
-Thus the type of operator might be estimated by indicating the correspond position in the assembly code.
+Thus the type of the operator might be estimated by indicating the correspond position in the assembly code.
 
 The third kind is the variable name. In the assembly code, a variable corresponds to a memory access. 
 Therefore, the name of a variable is identified by its corresponding memory position, similar to above two kinds.
@@ -954,12 +960,12 @@ In the sequence-to-tree model, a tree structure is flattened into an action sequ
 therefore the information of a tree structure might be lost in some degree.
 For example, the adjacent actions in the action sequence might be the distant actions in the AST, when they are in the different subtree of the AST.
 
-To preserve the information of the tree structure, we suggest to train the network for estimating each root-to-leaf action sequences in the AST,
+In order to preserve the information of the tree structure, we suggest to train the decoder network for estimating each root-to-leaf action sequences in the AST,
 instead of the flattened action sequence. 
 For example, in the figure~\ref{fig:ast_zu}, there are four root-to-leaf action sequences, 
 $ [act_1, act_2] $, $ [act_1, act_3,act_4,act_5,act_6,act_7] $, $ [act_1, act_3,act_4,act_8] $ and $ [act_1, act_3,act_4,act_9,act_{10}] $.
 The AST can be recovered from these sequences instead of the whole sequence $ [act_1 \dots act_{10}] $, 
-and these sequences are independent of each other, when generating AST.
+and these sequences are independent of each other, when generating the AST.
 Therefore, we may estimate each of the sequences from the assembly token sequence by the sequence-to-sequence model.
 
 This approach will ease the AST size problem, because the length of a root-to-leaf path is shorter than the size of whole AST, unless the AST has no branching.
@@ -976,9 +982,9 @@ This approach will ease the AST size problem, because the length of a root-to-le
 As is seen in the figure~\ref{fig:csizes} and figure~\ref{fig:astsizes}, most of the data are short length C code.
 This is due to our data generation method, which enumerates all of the subtree of a C source code.
 We intended the models to learn the structure of long data from the short data, though the result shows that 
-the poor decompilation results are generated from the longer data.
+the poorer decompilation results are generated from the longer data.
 Therefore, the length distribution of the training data might effect on the training result, 
-thus we will need to seek effective distribution for the training.
+thus we will need to seek an effective distribution of the length for the training.
 
 
 % \section{For General Decompiler}
