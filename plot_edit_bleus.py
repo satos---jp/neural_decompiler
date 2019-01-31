@@ -1,4 +1,4 @@
-from plot_edit_bleus_data import seq2seq,seq2seq_att,seq2tree_flatten,seq2tree,seq2seq_1000
+from plot_edit_bleus_data import seq2seq,seq2seq_att,seq2tree_flatten,seq2tree
 from matplotlib import pyplot as plt
 
 
@@ -6,7 +6,6 @@ def lap(i,v):
 	return list(map(lambda x: x[i],v))
 
 seq2seq = seq2seq[:19]
-seq2seq_1000 = seq2seq_1000[:19]
 seq2seq_att = seq2seq_att[:19]
 
 def xlas(x):
@@ -26,7 +25,7 @@ for t in range(2):
 	plt.xlabel('training data size',fontsize=15)
 	plt.xticks([(i*1000.0/1024) for i in range(21)][::5],[xlas('%0.1e' % (100 * 1000 * i)) for i in range(21)][::5])
 	plt.ylabel(ys[t],fontsize=15)
-	plt.show()
-	continue
+	#plt.show()
+	#continue
 	plt.savefig('texs/' + sn[t])
 	plt.clf()

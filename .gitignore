@@ -10,6 +10,7 @@
 *.objd
 *.parsed
 *.xbb
+*.toc
 __pycache__/
 build/
 .gdb_history
