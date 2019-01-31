@@ -2,6 +2,9 @@
 %論文の種類とフォントサイズをオプションに
 %\usepackage{graphicx}% 必要に応じて
 %\usepackage{mysettings}% 自分用設定
+
+\pagenumbering{arabic} 
+
 %-------------------
 \etitle{Neural Network based Decompiler and its Evaluation}
 \jtitle{ニューラルネットを用いた逆コンパイラとその評価}
@@ -71,7 +74,6 @@ __NAMES__
   captionpos=b,
 }
 
-
 \begin{document}
 \begin{eabstract}
 A decompiler is a tool for recovering a source code from compiled binary data.
@@ -81,7 +83,7 @@ More specifically, we propose to use recurrent neural networks with attention,
 which have been demonstrated to be useful for machine translation. 
 In experiments, we use source codes collected from open source projects and their binary data for training and evaluating the neural networks.
 From the experiment, we can observe little improvement in the result of decompilation with the use of attention.
-Unfortunately, the results were not applicable for practical use.
+Unfortunately, the results were not still good enough for practical use.
 
 \end{eabstract}
 \begin{jabstract}
@@ -93,7 +95,15 @@ Unfortunately, the results were not applicable for practical use.
 実験の結果、注意機構を用いることににより逆コンパイル結果における若干の精度向上が認められたが、実用的な精度までは至らなかった。
 \end{jabstract}
 
+
+
 \maketitle
+
+\chapter*{Acknowledgement}
+I thank Prof. Sugiyama and Lecture Sato for providing useful advice, supplying computational resources, helping me with writing this thesis and 
+correcting my English.
+I also thank A. Sano, who is my college classmate, for checking my English.
+
 
 \chapter{Introduction}
 % For dinamic analysis, malware is executed in the sandbox and the behavior is examined with the changes ocuuring in the sandbox. 
@@ -123,7 +133,7 @@ Therefore, we also implemented the sequence-to-tree model, which is suggested in
 
 In the experiment, we tested three models, the basic sequence-to-sequence model, the sequence-to-sequence model with attention and the sequence-to-tree model.
 As the result of the experiment, the attention mechanism showed little improvement in the performance, while the sequence-to-tree does not.
-Unfortunately, the results of the all models seemed to be not applicable for practical use.
+Unfortunately, the results of the all models were not still good enough for practical use.
 The results of decompilation for short C source code fragment were not so bad. 
 Nevertheless, the results for long C codes, which are considered to appear in practical use, were mostly failed.
 
@@ -529,9 +539,10 @@ Therefore, implementing the copying method for values is left as future work.
 % 前述の Sequence-to-Tree は プログラムの構造を考慮しているものの、アクションをそのまま列にするのは結局プログラムの木としての構造がある程度失われてしまっているのではないかと考えられる。
 % すなわち、アクションを列に展開しているため、ある部分木からその兄弟の部分木の生成に移る際に大幅なジャンプが生じている。
 
-\chapter{Experiments}
-In this chapter, we explain the details of data preparation and implementation.
-The implementation source codes are available at \url{https://github.com/satos---jp/neural_decompiler}.  
+\chapter{Evaluation Experiment}
+In this chapter, we explain the details of the evaluation experiment.
+% In this chapter, we show the evaluated result of the three models, Seq2Seq, Seq2SeqAtt, and Seq2Tree.
+The source codes for the experiment are available at \url{https://github.com/satos---jp/neural_decompiler}.  
 
 \section{Data Collection}
 % 219 words
@@ -719,7 +730,7 @@ For the optimizer of the training, we used Adam, which was introduced by \citet{
 The parameters of Adam were set to $ (\alpha,\beta_1,\beta_2) = (0.001,0.9,0.999) $, which are the default parameters of Chainer version 4.5.0.
 % 学習の際のoptimizerにはAdam(文献)を用いた。
 
-\section{Model Evaluation}
+\section{Evaluation Metrics}
 We evaluated the quality of the results by two metrics, 
 the edit distance ratio and the bilingual evaluation understudy (BLEU) \citep{BLEU}.
 
@@ -741,8 +752,8 @@ Before calculating these scores, we normalized variable names in the source code
 % 補足として、今回は edit distance と BLEU を計算する際に、変数名を先頭から順に順番に付け直すことにより、ソースコード中の変数名の付けなおしを行っている。
 % これはプログラムの意味は変数名に依らないためである。
 
-\chapter{Evaluation}
-In this chapter, we show the evaluated result of the three models, Seq2Seq, Seq2SeqAtt, and Seq2Tree.
+% \chapter{Evaluation}
+% In this chapter, we show the evaluated result of the three models, Seq2Seq, Seq2SeqAtt, and Seq2Tree.
 % We trained each models with reedbush, を用い、各モデルについて4時間学習させた。
 % We collected approximately $ 10^7 $ pairs of datasets. 
 
@@ -912,7 +923,7 @@ and as a result, the type of the output function becomes broken and the body of 
 
 According to these decompilation results, it can be said that these models are not acceptable for practical use.
 
-% According to the figure 1, the 
+% According to Figure 1, the 
 % 図1からわかるように、attention付きのネットワークとそうでないネットワークの間には有意に差が存在しているが、
 % Seq2seqWithAattention,Seq2Tree の間にはあまり差がみられない。
 
@@ -925,56 +936,65 @@ According to these decompilation results, it can be said that these models are n
 
 % \section{Furure work}
 
-\chapter{Future research}
-In this chapter, we suggest some other approaches to improve the accuracy of our decompilation models.
+\chapter{Conclusion and Future Work}
+\section{Conclusion}
+We tested three neural network models Seq2Seq, Seq2SeqAtt and Seq2Tree for decompilation.
+Numerically, Seq2SeqAtt performed better compared to the other two models,
+but all of the three models were not still good enough for practical use.
+Therefore, we will continue to develop a practical decompiler for the good future of malware analysis.
 
-\section{Improvement on Assembly Code Preprocessing}
+\section{Future Work}
+In this section, we suggest some other approaches to improve the accuracy of our decompilation models.
+
+\subsection{Improvement on Assembly Code Preprocessing}
 We used tokenized assembly string sequences for training. 
-However, such simple concatenation of sequences might lose the information of the unity of each instructions.
+However, such simple concatenation of sequences might lose the information of the unity of each instruction.
 To improve this point, we propose the following method.
 
 This method uses two LSTM networks, the instruction encoder network and the assembly code encoder network, for encoding assembly token sequences.
-First, each assembly instruction sequences are encoded by instruction encoding network into one instruction embedding vector, 
+First, each assembly instruction sequence is encoded by the instruction encoding network into one instruction embedding vector, 
 thus the assembly codes turn into the sequences of instruction embedding vectors.
-Then, the seqeuence of embedding vectors is encoded into one reduced vector by assembly code encoder network.
+Then, the seqeuence of embedding vectors is encoded into one reduced vector by the assembly code encoder network.
 
 This method will be time consuming compared to the method used in the experiment.
 Nevertheless, this might be worth trying.
 
-\section{Improvement on Sequence-to-tree Model}
-We considered that the AST representation seems to exploit the feature of C source code. 
+\subsection{Improvement on Sequence-to-tree Model}
+We considered that the AST representation could exploit the feature of C source codes. 
 However, the sequence-to-tree model was not well performed.
 In this section, we seek to the improvement of the AST approach.
-\subsection{Copy Leaf Data from Assembler}
-The translation results show that the sequence-to-tree model have difficulty in recovering the leaf data of the program.
-Threfore changing the method for expanding leaf node might improve the accuracy of decompilation.
-There are three kind of leaf data in the AST representation of a C source code.
+\subsubsection{Copy Leaf Data from Assembler}
+The translation results show that the sequence-to-tree model has difficulty in recovering the leaf data of the program.
+Therefore changing the method for expanding leaf nodes might improve the accuracy of decompilation.
+There are three kinds of leaf data in the AST representation of a C source code.
 
 The first kind is the literal data. In the C source code, there are four literal data, integer, float, char and string. 
 In the assembly code, the string literal appears in the form of a memory address, and the other three literals appear in the form of an immediate value.
-Therefore, instead of estimating literal value directly, estimating the corresponding position in the assembly code might improve the correctness of decompilation.
+Therefore, instead of estimating the literal value directly, 
+estimating the corresponding position in the assembly code might improve the correctness of decompilation.
 
-The second kind is the type of operator. These can be also estimated from the assembly code.
+The second kind is the type of operators. They can be also estimated from the assembly code.
 For example, the operator $ + $ is compiled to the opcode \texttt{add}, the operator $ | $ is compiled to the opcode \texttt{or}, and so on. 
 Thus the type of the operator might be estimated by indicating the correspond position in the assembly code.
 
 The third kind is the variable name. In the assembly code, a variable corresponds to a memory access. 
-Therefore, the name of a variable is identified by its corresponding memory position, similar to above two kinds.
+Therefore, the name of a variable is identified by its corresponding memory position, similarly to the above two kinds.
 
-\subsection{Path Estimation} 
+\subsubsection{Path Estimation} 
 In the sequence-to-tree model, a tree structure is flattened into an action sequence, 
 therefore the information of a tree structure might be lost in some degree.
-For example, the adjacent actions in the action sequence might be the distant actions in the AST, when they are in the different subtree of the AST.
+For example, adjacent actions in the action sequence might be distant actions in an AST, when they are in the different subtree of the AST.
 
-In order to preserve the information of the tree structure, we suggest to train the decoder network for estimating each root-to-leaf action sequences in the AST,
+In order to preserve the information of the tree structure, 
+we suggest to train the decoder network for estimating each root-to-leaf action sequence in the AST,
 instead of the flattened action sequence. 
-For example, in the figure~\ref{fig:ast_zu}, there are four root-to-leaf action sequences, 
+For example, in Figure~\ref{fig:ast_zu}, there are four root-to-leaf action sequences, 
 $ [\mathrm{act}_1, \mathrm{act}_2] $, $ [\mathrm{act}_1, \mathrm{act}_3,\mathrm{act}_4,\mathrm{act}_5,\mathrm{act}_6,\mathrm{act}_7] $, $ [\mathrm{act}_1, \mathrm{act}_3,\mathrm{act}_4,\mathrm{act}_8] $ and $ [\mathrm{act}_1, \mathrm{act}_3,\mathrm{act}_4,\mathrm{act}_9,\mathrm{act}_{10}] $.
 The AST can be recovered from these sequences instead of the whole sequence $ [\mathrm{act}_1 \dots \mathrm{act}_{10}] $, 
 and these sequences are independent of each other, when generating the AST.
 Therefore, we may estimate each of the sequences from the assembly token sequence by the sequence-to-sequence model.
 
-This approach will ease the AST size problem, because the length of a root-to-leaf path is shorter than the size of whole AST, unless the AST has no branching.
+This approach will ease the problem of the AST size, because the length of a root-to-leaf path is shorter than the size of whole AST, unless the AST has no branching.
 
 
 
@@ -984,29 +1004,16 @@ This approach will ease the AST size problem, because the length of a root-to-le
 
 
 
-\section{Improvement of Dataset}
-As is seen in the figure~\ref{fig:csizes} and figure~\ref{fig:astsizes}, most of the data are short length C code.
+\subsection{Improvement on Datasets}
+As is seen in Figure~\ref{fig:csizes} and figure~\ref{fig:astsizes}, most of the data are short length C codes.
 This is due to our data generation method, which enumerates all of the subtree of a C source code.
-We intended the models to learn the structure of long data from the short data, though the result shows that 
-the poorer decompilation results are generated from the longer data.
-Therefore, the length distribution of the training data might effect on the training result, 
-thus we will need to seek an effective distribution of the length for the training.
+We intended the models to learn the structure of long data from the short data, though the result showed that 
+the poorer decompilation results were generated from the longer data.
+Therefore, the length distribution of the training data might affect the training result.
+To cope with this problem, we will need to seek an effective distribution of the length for training.
 
 
 % \section{For General Decompiler}
-
-
-
-\chapter{Conclusion}
-We tested three neural network models Seq2Seq, Seq2SeqAtt and Seq2Tree for decompilation.
-Numerically, Seq2SeqAtt performed better results compared to the other two models,
-but all of three models were not acceptable for practical use.
-Therefore, we will continue to develop practical decompiler for the good future of malware analysis.
-
-\chapter{Acknowledgement}
-I thank Prof. Sugiyama and Lecture Sato for providing useful advice, supplying computational resources, helping me with writing this thesis and 
-correcting my English.
-I also thank A. Sano, who is my college classmate, for checking my English.
 
 \bibliographystyle{plainnat}
 \bibliography{reference}
