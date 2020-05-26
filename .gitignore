@@ -30,7 +30,7 @@ correspond_table.txt
 log/
 save_models/
 data.pickle
-texs/*.pdf
+#texs/*.pdf
 texs/*.log
 texs/*.aux
 texs/*.dvi

@@ -1,4 +1,5 @@
-\documentclass[senior,final,11pt]{iscs-thesis}
+% documentclass[senior,final,11pt]{iscs-thesis}
+\documentclass[11pt]{jarticle}
 %論文の種類とフォントサイズをオプションに
 %\usepackage{graphicx}% 必要に応じて
 %\usepackage{mysettings}% 自分用設定
@@ -6,10 +7,10 @@
 \pagenumbering{arabic} 
 
 %-------------------
-\etitle{Neural Network based Decompiler and its Evaluation}
-\jtitle{ニューラルネットを用いた逆コンパイラとその評価}
+% \title{Neural Network based Decompiler and its Evaluation}
+\title{ニューラルネットを用いた逆コンパイラとその評価}
 
-__NAMES__
+% __NAMES__
 
 \date{February 1, 2018}
 %-------------------
@@ -25,6 +26,7 @@ __NAMES__
 \usepackage[dvipdfmx]{graphicx}
 \usepackage{framed}
 \usepackage{caption}
+\usepackage{comment}
 
 \lstdefinestyle{myCustomMatlabStyle}{
   language=C,
@@ -75,6 +77,7 @@ __NAMES__
 }
 
 \begin{document}
+\begin{comment}
 \begin{eabstract}
 A decompiler is a tool for recovering a source code from compiled binary data.
 There are various decompilers, but they often output a source code that is not intelligible to humans. 
@@ -86,14 +89,15 @@ From the experiment, we can observe little improvement in the result of decompil
 Unfortunately, the results were not still good enough for practical use.
 
 \end{eabstract}
-\begin{jabstract}
+\end{comment}
+\begin{abstract}
 逆コンパイラはコンパイル後のバイナリデータからソースコードを復元するためのツールである。
 様々な逆コンパイラが存在するが、既存の逆コンパイラはしばしば人間にとって分かりにくいソースコードを出力する。
 そこで本論文では、統計的機械翻訳の技術を逆コンパイラに用いた、解析者にとってわかりやすいソースコードを出力する逆コンパイラを提案する。
 具体的には、機械翻訳において有用とされる注意機構付き再帰型ニューラルネットワークを用いる。
 実験では、オープンソースプロジェクトから収集したソースコードとそのバイナリデータを用いてニューラルネットワークを学習し、その性能を検証した。
 実験の結果、注意機構を用いることににより逆コンパイル結果における若干の精度向上が認められたが、実用的な精度までは至らなかった。
-\end{jabstract}
+\end{abstract}
 
 
 
@@ -243,7 +247,7 @@ although in the real situation \texttt{for} statements are often used and \textt
 	\begin{tabular}{cc}
 		\begin{minipage}[c]{0.5\hsize}
 		\fbox{
-			\lstinputlisting[breaklines=false]{insert_list.c}
+			% \lstinputlisting[breaklines=false]{insert_list.c}
 			}
 			\caption*{Sample C source code}
 		\end{minipage}
@@ -256,7 +260,7 @@ although in the real situation \texttt{for} statements are often used and \textt
 		\end{minipage}
 		\begin{minipage}[b]{0.5\hsize}
 			\begin{framed}
-			\lstinputlisting[breaklines=false]{recstudio.c}
+			% \lstinputlisting[breaklines=false]{recstudio.c}
 			\end{framed}
 			\caption*{Result of the REC Studio Decompiler}
 		\end{minipage}
